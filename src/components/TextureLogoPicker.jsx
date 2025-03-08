@@ -1,37 +1,3 @@
-// import React from 'react';
-
-// const TextureLogoPicker = ({ texturesLogos, handleTextureLogoClick }) => {
-//   const textures = texturesLogos.filter((textureLogo) => textureLogo.type === 'texture');
-//   const frontLogos = texturesLogos.filter((textureLogo) => textureLogo.type === 'frontLogo');
-//   const backLogos = texturesLogos.filter((textureLogo) => textureLogo.type === 'backLogo');
-
-//   const renderImages = (images) => {
-//     return (
-//       <div className='grid grid-cols-2 gap-2'>
-//         {images.map((image, index) => (
-//           <div key={image.name} onClick={() => handleTextureLogoClick(image)}>
-//             <img src={image.image} alt={image.name} className='rounded-full w-full' />
-//           </div>
-//         ))}
-//       </div>
-//     );
-//   };
-  
-  
-
-//   return (
-//     <div className='absolute left-full ml-3'>
-//       <h2>Textures</h2>
-//       <div className='flex flex-wrap overflow-y-scroll w-40 h-40'>{renderImages(textures)}</div>
-//       <h2>Front Logos</h2>
-//       <div className='flex flex-wrap overflow-y-scroll w-40 h-40'>{renderImages(frontLogos)}</div>
-//       <h2>Back Logos</h2>
-//       <div className='flex flex-wrap overflow-y-scroll w-40 h-40'>{renderImages(backLogos)}</div>
-//     </div>
-//   );
-// };
-
-// export default TextureLogoPicker;
 import React, { useState } from 'react';
 
 const TextureLogoPicker = ({ texturesLogos, handleTextureLogoClick }) => {
@@ -41,6 +7,7 @@ const TextureLogoPicker = ({ texturesLogos, handleTextureLogoClick }) => {
 
   const [frontLogoFile, setFrontLogoFile] = useState(null);
   const [backLogoFile, setBackLogoFile] = useState(null);
+  const [activeTab, setActiveTab] = useState('textures');
 
   const handleFrontLogoUpload = (e) => {
     const file = e.target.files[0];
@@ -72,10 +39,19 @@ const TextureLogoPicker = ({ texturesLogos, handleTextureLogoClick }) => {
 
   const renderImages = (images) => {
     return (
-      <div className='grid grid-cols-2 gap-2'>
+      <div className='texture-grid'>
         {images.map((image, index) => (
-          <div key={image.name} onClick={() => handleTextureLogoClick(image)}>
-            <img src={image.image} alt={image.name} className='rounded-full w-full' />
+          <div 
+            key={image.name} 
+            className="texture-item"
+            onClick={() => handleTextureLogoClick(image)}
+          >
+            <img 
+              src={image.image} 
+              alt={image.name} 
+              className='texture-image' 
+            />
+            <span className="texture-name">{image.name}</span>
           </div>
         ))}
       </div>
@@ -83,37 +59,99 @@ const TextureLogoPicker = ({ texturesLogos, handleTextureLogoClick }) => {
   };
 
   return (
-    <div className='absolute left-full ml-3'>
-      <h2>Textures</h2>
-      <div className='flex flex-wrap overflow-y-scroll w-40 h-40'>{renderImages(textures)}</div>
-      <h2>Front Logos</h2>
-      <div className='flex flex-wrap overflow-y-scroll w-40 h-40'>
-        {frontLogoFile ? (
-          <div onClick={handleFrontLogoImageClick}>
-            <img src={URL.createObjectURL(frontLogoFile)} alt="Front Logo" className='rounded-full w-full cursor-pointer' />
-          </div>
-        ) : (
-          <label className="cursor-pointer">
-            <input type="file" onChange={handleFrontLogoUpload} style={{ display: 'none' }} accept="image/*" />
-            <div className="border-dashed border-2 border-gray-400 rounded-md p-2 hover:bg-gray-100">
-              Click to upload Front Logo
-            </div>
-          </label>
-        )}
+    <div className='texture-logo-picker'>
+      <div className="texture-tabs">
+        <button 
+          className={`texture-tab ${activeTab === 'textures' ? 'active' : ''}`}
+          onClick={() => setActiveTab('textures')}
+        >
+          Textures
+        </button>
+        <button 
+          className={`texture-tab ${activeTab === 'frontLogos' ? 'active' : ''}`}
+          onClick={() => setActiveTab('frontLogos')}
+        >
+          Front Logos
+        </button>
+        <button 
+          className={`texture-tab ${activeTab === 'backLogos' ? 'active' : ''}`}
+          onClick={() => setActiveTab('backLogos')}
+        >
+          Back Logos
+        </button>
       </div>
-      <h2>Back Logos</h2>
-      <div className='flex flex-wrap overflow-y-scroll w-40 h-40'>
-        {backLogoFile ? (
-          <div onClick={handleBackLogoImageClick}>
-            <img src={URL.createObjectURL(backLogoFile)} alt="Back Logo" className='rounded-full w-full cursor-pointer' />
+
+      <div className="texture-content">
+        {activeTab === 'textures' && (
+          <div className="textures-container">
+            {renderImages(textures)}
           </div>
-        ) : (
-          <label className="cursor-pointer">
-            <input type="file" onChange={handleBackLogoUpload} style={{ display: 'none' }} accept="image/*" />
-            <div className="border-dashed border-2 border-gray-400 rounded-md p-2 hover:bg-gray-100">
-              Click to upload Back Logo
+        )}
+        
+        {activeTab === 'frontLogos' && (
+          <div className="logos-container">
+            <div className="logo-grid">
+              {renderImages(frontLogos)}
+              
+              <div className="upload-container">
+                {frontLogoFile ? (
+                  <div className="uploaded-logo" onClick={handleFrontLogoImageClick}>
+                    <img 
+                      src={URL.createObjectURL(frontLogoFile)} 
+                      alt="Front Logo" 
+                      className='uploaded-image' 
+                    />
+                    <span>Custom Logo</span>
+                  </div>
+                ) : (
+                  <label className="upload-label">
+                    <input 
+                      type="file" 
+                      onChange={handleFrontLogoUpload} 
+                      accept="image/*" 
+                      className="file-input"
+                    />
+                    <div className="upload-button">
+                      <span>+ Upload Logo</span>
+                    </div>
+                  </label>
+                )}
+              </div>
             </div>
-          </label>
+          </div>
+        )}
+        
+        {activeTab === 'backLogos' && (
+          <div className="logos-container">
+            <div className="logo-grid">
+              {renderImages(backLogos)}
+              
+              <div className="upload-container">
+                {backLogoFile ? (
+                  <div className="uploaded-logo" onClick={handleBackLogoImageClick}>
+                    <img 
+                      src={URL.createObjectURL(backLogoFile)} 
+                      alt="Back Logo" 
+                      className='uploaded-image' 
+                    />
+                    <span>Custom Logo</span>
+                  </div>
+                ) : (
+                  <label className="upload-label">
+                    <input 
+                      type="file" 
+                      onChange={handleBackLogoUpload} 
+                      accept="image/*" 
+                      className="file-input"
+                    />
+                    <div className="upload-button">
+                      <span>+ Upload Logo</span>
+                    </div>
+                  </label>
+                )}
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </div>

@@ -1,10 +1,6 @@
-import { swatch, fileIcon, logoShirt, stylishShirt, logoControls, textIcon, download, textureLogoPicker, texture1, texture2, texture3, texture4, texture5, logo1, logo2 } from "../assets";
+import { fileIcon, logoShirt, stylishShirt, logoControls, textIcon, download, textureLogoPicker, texture1, texture2, texture3, texture4, texture5, logo1, logo2 } from "../assets";
 
 export const EditorTabs = [
-  {
-    name: "colorpicker",
-    icon: swatch,
-  },
   {
     name: "filepicker",
     icon: fileIcon,
@@ -20,34 +16,7 @@ export const EditorTabs = [
   {
     name: "texturelogopicker",
     icon: textureLogoPicker,
-  },
-];
-
-export const FilterTabs = [
-  {
-    name: "frontLogoShirt",
-    icon: logoShirt,
-  },
-  {
-    name: "backLogoShirt",
-    icon: logoShirt,
-  },
-  {
-    name: "frontTextShirt",
-    icon: textIcon,
-  },
-  {
-    name: "backTextShirt",
-    icon: textIcon,
-  },
-  {
-    name: "stylishShirt",
-    icon: stylishShirt,
-  },
-  {
-    name: "downloadShirt",
-    icon: download,
-  },
+  }
 ];
 
 export const DecalTypes = {

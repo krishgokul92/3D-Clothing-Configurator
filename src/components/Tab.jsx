@@ -11,19 +11,23 @@ const Tab = ({ tab, isFilterTab, isActiveTab, handleClick }) => {
     : { backgroundColor: "transparent", opacity: 1 }
 
   return (
-    <div className='tab'>
-    <div
-      key={tab.name}
-      className={`tab-btn  ${isFilterTab ? 'rounded-full glassmorphism' : 'rounded-4'}`}
+    <div 
+      className={`tab ${isActiveTab && !isFilterTab ? 'active-tab' : ''}`}
       onClick={handleClick}
-      style={activeStyles}
     >
-      <img 
-        src={tab.icon}
-        alt={tab.name}
-        className={`${isFilterTab ? 'w-2/3 h-2/3' : 'w-11/12 h-12/12 object-contain'}`}
-      />
-    </div>
+      <div
+        className={`tab-btn ${isFilterTab ? 'filter-tab' : 'editor-tab'} ${isActiveTab && !isFilterTab ? 'active' : ''}`}
+        style={isFilterTab ? activeStyles : {}}
+      >
+        <img 
+          src={tab.icon}
+          alt={tab.name}
+          className={`${isFilterTab ? 'w-2/3 h-2/3' : 'w-5 h-5 mr-2'}`}
+        />
+        {!isFilterTab && (
+          <span className="tab-label">{tab.name.charAt(0).toUpperCase() + tab.name.slice(1)}</span>
+        )}
+      </div>
     </div>
   )
 }
