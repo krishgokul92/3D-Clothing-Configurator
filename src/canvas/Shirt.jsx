@@ -17,30 +17,10 @@ const Shirt = () => {
   const textTexturesRef = useRef({});
   const gradientTexturesRef = useRef({});
   const [forceUpdate, setForceUpdate] = useState(0);
-  const [normalIntensity, setNormalIntensity] = useState(1.0); // Normal map intensity
-  const [normalTiling, setNormalTiling] = useState(10); // Normal map tiling
-
+  
   const logoTexture = useTexture(snap.frontLogoDecal);
   const fullTexture = useTexture(snap.fullDecal);
   const backLogoTexture = useTexture(snap.backLogoDecal);
-  const normalMap = useTexture('/fabric_normal.png');
-  
-  // Configure normal map
-  useEffect(() => {
-    if (normalMap) {
-      normalMap.wrapS = normalMap.wrapT = THREE.RepeatWrapping;
-      normalMap.repeat.set(normalTiling, normalTiling); // Adjust the tiling
-      normalMap.anisotropy = 16; // Improve texture quality
-      
-      // Update normal map on all materials
-      meshes.forEach((node) => {
-        if (node.material && node.material.normalMap) {
-          node.material.normalScale.set(normalIntensity, normalIntensity);
-          node.material.needsUpdate = true;
-        }
-      });
-    }
-  }, [normalMap, normalIntensity, normalTiling, meshes]);
   
   // Create a texture from text content
   const createTextTexture = (textConfig) => {
@@ -193,13 +173,6 @@ const Shirt = () => {
         // Apply gradient texture to material
         if (gradientTexture) {
           node.material.map = gradientTexture;
-          
-          // Preserve normal map when changing to gradient
-          if (normalMap && !node.material.normalMap) {
-            node.material.normalMap = normalMap;
-            node.material.normalScale = new THREE.Vector2(1, 1);
-          }
-          
           node.material.needsUpdate = true;
         }
       } else {
@@ -210,18 +183,12 @@ const Shirt = () => {
             node.material.map = null;
           }
           
-          // Preserve normal map when changing to solid color
-          if (normalMap && !node.material.normalMap) {
-            node.material.normalMap = normalMap;
-            node.material.normalScale = new THREE.Vector2(1, 1);
-          }
-          
           node.material.color.set(snap.materials[materialName]);
           node.material.needsUpdate = true;
         }
       }
     });
-  }, [meshes, snap.materials, snap.materialTypes, normalMap]);
+  }, [meshes, snap.materials, snap.materialTypes]);
 
   // Find all meshes in the model
   useEffect(() => {
@@ -257,13 +224,6 @@ const Shirt = () => {
             node.material.metalness = 0.2; // Add slight metallic quality
             node.material.envMapIntensity = 1.0; // Control environment reflection intensity
             
-            // Apply normal map
-            if (normalMap) {
-              node.material.normalMap = normalMap;
-              node.material.normalScale = new THREE.Vector2(1, 1); // Adjust normal intensity
-              node.material.needsUpdate = true;
-            }
-            
             // Enable shadows
             node.castShadow = true;
             node.receiveShadow = true;
@@ -293,7 +253,7 @@ const Shirt = () => {
         }
       }
     }
-  }, [scene, normalMap]);
+  }, [scene]);
 
   // Update material colors in real-time
   useFrame((state, delta) => {
