@@ -5,10 +5,14 @@ const state = proxy({
   color: '#000000',
   
   // Multiple materials support
-  currentModel: 'shirt2.glb', // Use the multi-material model
+  currentModel: 'jerseyhalf.glb', // Use the multi-material model
   materials: {
     // Default colors for each material in shirt2.glb
     // These will be populated dynamically when the model loads
+  },
+  materialTypes: {
+    // Will store whether each material uses solid color or gradient
+    // Structure: {materialName: {type: 'solid' | 'gradient', gradient: {color1: '#fff', color2: '#000', type: 'linear', angle: 45}}}
   },
   activeMaterial: null, // Currently selected material for editing
   
@@ -24,6 +28,83 @@ const state = proxy({
       state.materials[materialName] = color;
       console.log(`Updated material ${materialName} to color ${color}`);
     }
+  },
+  
+  // Function to initialize material type
+  initMaterialType: (materialName) => {
+    if (!state.materialTypes) {
+      state.materialTypes = {};
+    }
+    
+    if (!state.materialTypes[materialName]) {
+      // Get a default color - either from materials or use white
+      const defaultColor = state.materials[materialName] || '#ffffff';
+      
+      state.materialTypes[materialName] = {
+        type: 'solid',
+        solidColor: defaultColor, // Store the solid color separately
+        gradient: {
+          color1: '#3498db', // Default blue
+          color2: '#e74c3c', // Default red
+          type: 'linear',
+          angle: 45
+        }
+      };
+      console.log(`Initialized material type for: ${materialName}`);
+    }
+  },
+  
+  // Function to set material type (solid or gradient)
+  setMaterialType: (materialName, type) => {
+    if (!state.materialTypes) {
+      state.materialTypes = {};
+    }
+    
+    if (!state.materialTypes[materialName]) {
+      state.initMaterialType(materialName);
+    }
+    
+    // When switching to solid, update the material color to the stored solid color
+    if (type === 'solid' && state.materialTypes[materialName].type === 'gradient') {
+      state.updateMaterialColor(materialName, state.materialTypes[materialName].solidColor);
+    }
+    
+    // When switching to gradient, store the current solid color but don't change gradient colors
+    if (type === 'gradient' && state.materialTypes[materialName].type === 'solid') {
+      state.materialTypes[materialName].solidColor = state.materials[materialName];
+      // Don't update gradient colors here - keep them as they were
+    }
+    
+    state.materialTypes[materialName].type = type;
+    console.log(`Set material ${materialName} type to ${type}`);
+  },
+  
+  // Function to update solid color
+  updateSolidColor: (materialName, color) => {
+    if (!state.materialTypes) {
+      state.materialTypes = {};
+    }
+    
+    if (!state.materialTypes[materialName]) {
+      state.initMaterialType(materialName);
+    }
+    
+    state.materialTypes[materialName].solidColor = color;
+    console.log(`Updated solid color for ${materialName} to ${color}`);
+  },
+  
+  // Function to update gradient properties
+  updateGradient: (materialName, property, value) => {
+    if (!state.materialTypes) {
+      state.materialTypes = {};
+    }
+    
+    if (!state.materialTypes[materialName]) {
+      state.initMaterialType(materialName);
+    }
+    
+    state.materialTypes[materialName].gradient[property] = value;
+    console.log(`Updated gradient ${property} for ${materialName} to ${value}`);
   },
   
   // Function to initialize material decorations

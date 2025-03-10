@@ -11,6 +11,11 @@ const MaterialColorPicker = () => {
   const [activeLogoId, setActiveLogoId] = useState(null);
   const [activeTextId, setActiveTextId] = useState(null);
   const [logoFile, setLogoFile] = useState(null);
+  const [colorInputValue, setColorInputValue] = useState('');
+  const [gradientColor1, setGradientColor1] = useState('#3498db'); // Default blue
+  const [gradientColor2, setGradientColor2] = useState('#e74c3c'); // Default red
+  const [gradientAngle, setGradientAngle] = useState(45);
+  const [gradientType, setGradientType] = useState('linear');
   
   // Predefined color palette - organized by color families
   const colorPalette = {
@@ -44,6 +49,11 @@ const MaterialColorPicker = () => {
         if (!snap.materialDecorations[materialsArray[0].name]) {
           state.initMaterialDecorations(materialsArray[0].name);
         }
+        
+        // Initialize material type if not already set
+        if (!snap.materialTypes || !snap.materialTypes[materialsArray[0].name]) {
+          state.initMaterialType(materialsArray[0].name);
+        }
       }
     }
   }, [snap.materials]);
@@ -59,6 +69,41 @@ const MaterialColorPicker = () => {
       }
     }
   }, [snap.activeMaterial]);
+
+  // Update gradient state when active material changes or when switching to gradient mode
+  useEffect(() => {
+    if (activeMaterial && snap.materialTypes && snap.materialTypes[activeMaterial]) {
+      const materialType = snap.materialTypes[activeMaterial];
+      
+      // Only update gradient values if we're in gradient mode or just switched to it
+      if (materialType.type === 'gradient' && materialType.gradient) {
+        setGradientColor1(materialType.gradient.color1);
+        setGradientColor2(materialType.gradient.color2);
+        setGradientAngle(materialType.gradient.angle);
+        setGradientType(materialType.gradient.type);
+      }
+    }
+  }, [activeMaterial, snap.materialTypes]);
+
+  // Update colorInputValue when active material changes or when switching to solid mode
+  useEffect(() => {
+    if (activeMaterial) {
+      if (snap.materialTypes && 
+          snap.materialTypes[activeMaterial]) {
+        
+        // If in solid mode, use the current material color
+        if (snap.materialTypes[activeMaterial].type === 'solid') {
+          setColorInputValue(snap.materials[activeMaterial]);
+        } else {
+          // In gradient mode, use the stored solid color
+          setColorInputValue(snap.materialTypes[activeMaterial].solidColor || snap.materials[activeMaterial]);
+        }
+      } else if (snap.materials[activeMaterial]) {
+        // Fallback to material color if material types not initialized
+        setColorInputValue(snap.materials[activeMaterial]);
+      }
+    }
+  }, [activeMaterial, snap.materials, snap.materialTypes]);
 
   const handleMaterialChange = (materialName) => {
     setActiveMaterial(materialName);
@@ -76,13 +121,34 @@ const MaterialColorPicker = () => {
     if (activeMaterial) {
       console.log(`Changing color for ${activeMaterial} to:`, color.hex);
       state.updateMaterialColor(activeMaterial, color.hex);
+      state.updateSolidColor(activeMaterial, color.hex);
+      setColorInputValue(color.hex);
     }
   };
 
-  const handleQuickColorChange = (colorHex) => {
+  const handleQuickColorChange = (colorValue) => {
     if (activeMaterial) {
-      console.log(`Quick changing color for ${activeMaterial} to:`, colorHex);
-      state.updateMaterialColor(activeMaterial, colorHex);
+      // Always update the input value
+      setColorInputValue(colorValue);
+      
+      // Try to apply the color if it seems valid
+      // Basic validation for hex format
+      const hexRegex = /^#?([A-Fa-f0-9]{3}|[A-Fa-f0-9]{6})$/;
+      
+      // Basic validation for rgb/rgba format
+      const rgbRegex = /^rgba?\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*(?:,\s*(?:0?\.\d+|1|0))?\s*\)$/;
+      
+      // If it's a valid color format, update the material
+      if (hexRegex.test(colorValue) || rgbRegex.test(colorValue)) {
+        // Add # prefix if it's a hex color without it
+        if (hexRegex.test(colorValue) && !colorValue.startsWith('#')) {
+          colorValue = '#' + colorValue;
+        }
+        
+        console.log(`Changing color for ${activeMaterial} to:`, colorValue);
+        state.updateMaterialColor(activeMaterial, colorValue);
+        state.updateSolidColor(activeMaterial, colorValue);
+      }
     }
   };
   
@@ -188,6 +254,75 @@ const MaterialColorPicker = () => {
     }
   };
 
+  // Handle material type change (solid or gradient)
+  const handleMaterialTypeChange = (type) => {
+    if (activeMaterial) {
+      // If switching to gradient, make sure we don't copy the solid color to gradient color1
+      state.setMaterialType(activeMaterial, type);
+      
+      // Force update the UI state based on the new type
+      if (type === 'solid' && snap.materialTypes[activeMaterial]) {
+        setColorInputValue(snap.materialTypes[activeMaterial].solidColor || snap.materials[activeMaterial]);
+      } else if (type === 'gradient' && snap.materialTypes[activeMaterial] && snap.materialTypes[activeMaterial].gradient) {
+        // Update gradient values from state
+        setGradientColor1(snap.materialTypes[activeMaterial].gradient.color1);
+        setGradientColor2(snap.materialTypes[activeMaterial].gradient.color2);
+        setGradientAngle(snap.materialTypes[activeMaterial].gradient.angle);
+        setGradientType(snap.materialTypes[activeMaterial].gradient.type);
+      }
+    }
+  };
+
+  // Handle gradient property change
+  const handleGradientChange = (property, value) => {
+    if (activeMaterial) {
+      state.updateGradient(activeMaterial, property, value);
+      
+      // Update local state
+      switch (property) {
+        case 'color1':
+          setGradientColor1(value);
+          break;
+        case 'color2':
+          setGradientColor2(value);
+          break;
+        case 'angle':
+          setGradientAngle(value);
+          break;
+        case 'type':
+          setGradientType(value);
+          break;
+        default:
+          break;
+      }
+    }
+  };
+
+  // Get current material type
+  const getCurrentMaterialType = () => {
+    if (activeMaterial && snap.materialTypes && snap.materialTypes[activeMaterial]) {
+      return snap.materialTypes[activeMaterial].type;
+    }
+    return 'solid';
+  };
+
+  // Generate gradient preview style
+  const getGradientPreviewStyle = () => {
+    if (activeMaterial && snap.materialTypes && snap.materialTypes[activeMaterial]) {
+      const { gradient } = snap.materialTypes[activeMaterial];
+      if (gradient.type === 'linear') {
+        return {
+          background: `linear-gradient(${gradient.angle}deg, ${gradient.color1}, ${gradient.color2})`
+        };
+      } else {
+        return {
+          background: `radial-gradient(circle, ${gradient.color1}, ${gradient.color2})`
+        };
+      }
+    }
+    return {};
+  };
+
   // If no materials are loaded yet, show a loading message
   if (materialsList.length === 0) {
     return (
@@ -203,6 +338,23 @@ const MaterialColorPicker = () => {
   // Find the current active material object
   const currentMaterial = materialsList.find(m => m.name === activeMaterial) || materialsList[0];
   const materialDecor = snap.materialDecorations[activeMaterial] || { logos: [], texts: [] };
+  const materialType = getCurrentMaterialType();
+
+  // Get the appropriate color to display based on material type
+  const getDisplayColor = () => {
+    if (!currentMaterial) return '#ffffff';
+    
+    if (materialType === 'solid') {
+      return currentMaterial.color;
+    } else {
+      // For gradient, show the stored solid color in the color preview
+      return snap.materialTypes && 
+             snap.materialTypes[activeMaterial] && 
+             snap.materialTypes[activeMaterial].solidColor ? 
+             snap.materialTypes[activeMaterial].solidColor : 
+             '#ffffff';
+    }
+  };
 
   return (
     <div className="material-color-picker">
@@ -254,49 +406,180 @@ const MaterialColorPicker = () => {
           <div className="material-color-header">
             <div className="material-color-info">
               <span className="material-name">{currentMaterial.name}</span>
-              <span className="material-color-hex">{currentMaterial.color}</span>
+              <span className="material-color-hex">
+                {materialType === 'solid' ? currentMaterial.color : 'Gradient'}
+              </span>
             </div>
             <div 
               className="material-color-preview"
-              style={{ backgroundColor: currentMaterial.color }}
+              style={materialType === 'solid' 
+                ? { backgroundColor: currentMaterial.color } 
+                : getGradientPreviewStyle()}
             ></div>
           </div>
           
-          {/* Color Families */}
-          <div className="color-families">
-            {Object.entries(colorPalette).map(([family, colors]) => (
-              <div key={family} className="color-family">
-                <div className="color-family-name">{family}</div>
-                <div className="color-family-swatches">
-                  {colors.map((colorHex, i) => (
-                    <div 
-                      key={i} 
-                      className={`color-swatch ${currentMaterial.color === colorHex ? 'active' : ''}`}
-                      style={{ backgroundColor: colorHex }}
-                      onClick={() => handleQuickColorChange(colorHex)}
-                      title={colorHex}
-                    />
-                  ))}
-                </div>
-              </div>
-            ))}
+          {/* Color Type Selection */}
+          <div className="color-type-selector">
+            <div className="color-type-options">
+              <button 
+                className={`color-type-btn ${materialType === 'solid' ? 'active' : ''}`}
+                onClick={() => handleMaterialTypeChange('solid')}
+              >
+                Solid Color
+              </button>
+              <button 
+                className={`color-type-btn ${materialType === 'gradient' ? 'active' : ''}`}
+                onClick={() => handleMaterialTypeChange('gradient')}
+              >
+                Gradient
+              </button>
+            </div>
           </div>
           
-          {/* Advanced Color Picker */}
-          <div className="advanced-color-picker">
-            <div className="advanced-color-picker-header">
-              <span>Advanced Color Picker</span>
+          {/* Solid Color Controls */}
+          {materialType === 'solid' && (
+            <>
+              {/* Custom Color Input */}
+              <div className="custom-color-input">
+                <label htmlFor="hexInput">Custom Color (Hex/RGBA):</label>
+                <div className="color-input-row">
+                  <input
+                    id="hexInput"
+                    type="text"
+                    value={colorInputValue}
+                    onChange={(e) => handleQuickColorChange(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && activeMaterial) {
+                        state.updateMaterialColor(activeMaterial, colorInputValue);
+                        state.updateSolidColor(activeMaterial, colorInputValue);
+                      }
+                    }}
+                    placeholder="#RRGGBB or rgba(r,g,b,a)"
+                    className="color-input-field"
+                  />
+                  <button 
+                    className="apply-color-btn"
+                    onClick={() => {
+                      if (activeMaterial) {
+                        state.updateMaterialColor(activeMaterial, colorInputValue);
+                        state.updateSolidColor(activeMaterial, colorInputValue);
+                      }
+                    }}
+                  >
+                    Apply
+                  </button>
+                </div>
+              </div>
+              
+              {/* Advanced Color Picker */}
+              <div className="advanced-color-picker">
+                <div className="advanced-color-picker-header">
+                  <span>Advanced Color Picker</span>
+                </div>
+                <div className="sketch-picker-wrapper">
+                  <SketchPicker 
+                    color={currentMaterial.color}
+                    onChange={handleColorChange}
+                    disableAlpha
+                    width="100%"
+                    presetColors={[]}
+                  />
+                </div>
+              </div>
+            </>
+          )}
+          
+          {/* Gradient Controls */}
+          {materialType === 'gradient' && (
+            <div className="gradient-controls">
+              <div className="gradient-preview" style={getGradientPreviewStyle()}></div>
+              
+              <div className="gradient-type-selector">
+                <label>Gradient Type:</label>
+                <div className="gradient-type-options">
+                  <button 
+                    className={`gradient-type-btn ${gradientType === 'linear' ? 'active' : ''}`}
+                    onClick={() => handleGradientChange('type', 'linear')}
+                  >
+                    Linear
+                  </button>
+                  <button 
+                    className={`gradient-type-btn ${gradientType === 'radial' ? 'active' : ''}`}
+                    onClick={() => handleGradientChange('type', 'radial')}
+                  >
+                    Radial
+                  </button>
+                </div>
+              </div>
+              
+              {gradientType === 'linear' && (
+                <div className="gradient-angle-control">
+                  <label htmlFor="angleSlider">Angle: {gradientAngle}°</label>
+                  <input
+                    id="angleSlider"
+                    type="range"
+                    min="0"
+                    max="360"
+                    value={gradientAngle}
+                    onChange={(e) => handleGradientChange('angle', parseInt(e.target.value))}
+                    className="modern-slider"
+                  />
+                </div>
+              )}
+              
+              <div className="gradient-color-controls">
+                <div className="gradient-color-control">
+                  <label>Color 1:</label>
+                  <div className="color-input-row">
+                    <div 
+                      className="gradient-color-preview" 
+                      style={{ backgroundColor: gradientColor1 }}
+                    ></div>
+                    <input
+                      type="text"
+                      value={gradientColor1}
+                      onChange={(e) => handleGradientChange('color1', e.target.value)}
+                      className="color-input-field"
+                    />
+                  </div>
+                  <div className="sketch-picker-wrapper">
+                    <SketchPicker 
+                      color={gradientColor1}
+                      onChange={(color) => handleGradientChange('color1', color.hex)}
+                      disableAlpha
+                      width="100%"
+                      presetColors={[]}
+                    />
+                  </div>
+                </div>
+                
+                <div className="gradient-color-control">
+                  <label>Color 2:</label>
+                  <div className="color-input-row">
+                    <div 
+                      className="gradient-color-preview" 
+                      style={{ backgroundColor: gradientColor2 }}
+                    ></div>
+                    <input
+                      type="text"
+                      value={gradientColor2}
+                      onChange={(e) => handleGradientChange('color2', e.target.value)}
+                      className="color-input-field"
+                    />
+                  </div>
+                  <div className="sketch-picker-wrapper">
+                    <SketchPicker 
+                      color={gradientColor2}
+                      onChange={(color) => handleGradientChange('color2', color.hex)}
+                      disableAlpha
+                      width="100%"
+                      presetColors={[]}
+                    />
+                  </div>
+                </div>
+              </div>
             </div>
-            <div className="sketch-picker-wrapper">
-              <SketchPicker 
-                color={currentMaterial.color}
-                onChange={handleColorChange}
-                disableAlpha
-                width="100%"
-                presetColors={[]}
-              />
-            </div>
-          </div>
+          )}
         </div>
       )}
       

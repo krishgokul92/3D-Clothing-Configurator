@@ -5,10 +5,10 @@ const Navbar = () => {
     <nav className="navbar">
       <div className="navbar-content">
         <div className="navbar-logo">
-          3D Clothing Configurator
+          Jersey Configurator
         </div>
         <div className="navbar-title">
-          Design Your Custom Apparel
+          Design Your Custom Jersey
         </div>
       </div>
     </nav>

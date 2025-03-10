@@ -123,45 +123,43 @@ const Customizer = () => {
   return (
     <motion.div
       key="custom"
-      className="absolute top-0 left-0 z-10"
-      {...slideAnimation('left')}
+      className="customizer-wrapper"
+      {...fadeAnimation}
     >
-      <div className="flex items-center min-h-screen">
-        <div className="customizer-container">
-          {/* Tab Group Navigation */}
-          <div className="tab-group-nav">
-            {tabGroups.map((group) => (
-              <button
-                key={group.id}
-                className={`tab-group-btn ${activeTabGroup === group.id ? 'active' : ''}`}
-                onClick={() => {
-                  setActiveTabGroup(group.id);
-                  setActiveEditorTab("");
-                }}
-              >
-                {group.label}
-              </button>
+      <div className="customizer-container">
+        {/* Tab Group Navigation */}
+        <div className="tab-group-nav">
+          {tabGroups.map((group) => (
+            <button
+              key={group.id}
+              className={`tab-group-btn ${activeTabGroup === group.id ? 'active' : ''}`}
+              onClick={() => {
+                setActiveTabGroup(group.id);
+                setActiveEditorTab("");
+              }}
+            >
+              {group.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Editor Tabs - Only show if not in materials tab group */}
+        {activeTabGroup !== "materials" && (
+          <div className="editor-tabs">
+            {getTabsForActiveGroup().map((tab) => (
+              <Tab 
+                key={tab.name}
+                tab={tab}
+                handleClick={() => setActiveEditorTab(tab.name === activeEditorTab ? "" : tab.name)}
+                isActiveTab={tab.name === activeEditorTab}
+              />
             ))}
           </div>
+        )}
 
-          {/* Editor Tabs - Only show if not in materials tab group */}
-          {activeTabGroup !== "materials" && (
-            <div className="editor-tabs">
-              {getTabsForActiveGroup().map((tab) => (
-                <Tab 
-                  key={tab.name}
-                  tab={tab}
-                  handleClick={() => setActiveEditorTab(tab.name === activeEditorTab ? "" : tab.name)}
-                  isActiveTab={tab.name === activeEditorTab}
-                />
-              ))}
-            </div>
-          )}
-
-          {/* Tab Content */}
-          <div className="tab-content">
-            {getTabGroupContent()}
-          </div>
+        {/* Tab Content */}
+        <div className="tab-content">
+          {getTabGroupContent()}
         </div>
       </div>
     </motion.div>

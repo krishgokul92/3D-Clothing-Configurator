@@ -15,11 +15,32 @@ const Shirt = () => {
   const materialsRef = useRef({});
   const materialLogos = useRef({});
   const textTexturesRef = useRef({});
+  const gradientTexturesRef = useRef({});
   const [forceUpdate, setForceUpdate] = useState(0);
+  const [normalIntensity, setNormalIntensity] = useState(1.0); // Normal map intensity
+  const [normalTiling, setNormalTiling] = useState(10); // Normal map tiling
 
   const logoTexture = useTexture(snap.frontLogoDecal);
   const fullTexture = useTexture(snap.fullDecal);
   const backLogoTexture = useTexture(snap.backLogoDecal);
+  const normalMap = useTexture('/fabric_normal.png');
+  
+  // Configure normal map
+  useEffect(() => {
+    if (normalMap) {
+      normalMap.wrapS = normalMap.wrapT = THREE.RepeatWrapping;
+      normalMap.repeat.set(normalTiling, normalTiling); // Adjust the tiling
+      normalMap.anisotropy = 16; // Improve texture quality
+      
+      // Update normal map on all materials
+      meshes.forEach((node) => {
+        if (node.material && node.material.normalMap) {
+          node.material.normalScale.set(normalIntensity, normalIntensity);
+          node.material.needsUpdate = true;
+        }
+      });
+    }
+  }, [normalMap, normalIntensity, normalTiling, meshes]);
   
   // Create a texture from text content
   const createTextTexture = (textConfig) => {
@@ -50,6 +71,51 @@ const Shirt = () => {
       return texture;
     } catch (error) {
       console.error("Error creating text texture:", error);
+      return null;
+    }
+  };
+  
+  // Create a gradient texture
+  const createGradientTexture = (gradientConfig) => {
+    try {
+      const canvas = document.createElement('canvas');
+      const context = canvas.getContext('2d');
+      
+      // Set canvas size
+      canvas.width = 512;
+      canvas.height = 512;
+      
+      // Create gradient
+      let gradient;
+      
+      if (gradientConfig.type === 'linear') {
+        // Calculate start and end points based on angle
+        const angle = gradientConfig.angle * (Math.PI / 180);
+        const x1 = 256 + Math.cos(angle) * 256;
+        const y1 = 256 + Math.sin(angle) * 256;
+        const x2 = 256 - Math.cos(angle) * 256;
+        const y2 = 256 - Math.sin(angle) * 256;
+        
+        gradient = context.createLinearGradient(x1, y1, x2, y2);
+      } else {
+        // Radial gradient
+        gradient = context.createRadialGradient(256, 256, 0, 256, 256, 256);
+      }
+      
+      gradient.addColorStop(0, gradientConfig.color1);
+      gradient.addColorStop(1, gradientConfig.color2);
+      
+      // Fill canvas with gradient
+      context.fillStyle = gradient;
+      context.fillRect(0, 0, canvas.width, canvas.height);
+      
+      // Create texture from canvas
+      const texture = new THREE.CanvasTexture(canvas);
+      texture.needsUpdate = true;
+      
+      return texture;
+    } catch (error) {
+      console.error("Error creating gradient texture:", error);
       return null;
     }
   };
@@ -105,6 +171,58 @@ const Shirt = () => {
     }
   }, [snap.materialDecorations]);
 
+  // Update materials when they change
+  useEffect(() => {
+    meshes.forEach((node) => {
+      const materialName = node.material.name;
+      
+      // Check if this material uses a gradient
+      if (snap.materialTypes && 
+          snap.materialTypes[materialName] && 
+          snap.materialTypes[materialName].type === 'gradient') {
+        
+        // Create or update gradient texture
+        if (!gradientTexturesRef.current) {
+          gradientTexturesRef.current = {};
+        }
+        
+        // Create new gradient texture
+        const gradientTexture = createGradientTexture(snap.materialTypes[materialName].gradient);
+        gradientTexturesRef.current[materialName] = gradientTexture;
+        
+        // Apply gradient texture to material
+        if (gradientTexture) {
+          node.material.map = gradientTexture;
+          
+          // Preserve normal map when changing to gradient
+          if (normalMap && !node.material.normalMap) {
+            node.material.normalMap = normalMap;
+            node.material.normalScale = new THREE.Vector2(1, 1);
+          }
+          
+          node.material.needsUpdate = true;
+        }
+      } else {
+        // Apply solid color
+        if (snap.materials[materialName]) {
+          // Remove any existing texture map if switching from gradient to solid
+          if (node.material.map) {
+            node.material.map = null;
+          }
+          
+          // Preserve normal map when changing to solid color
+          if (normalMap && !node.material.normalMap) {
+            node.material.normalMap = normalMap;
+            node.material.normalScale = new THREE.Vector2(1, 1);
+          }
+          
+          node.material.color.set(snap.materials[materialName]);
+          node.material.needsUpdate = true;
+        }
+      }
+    });
+  }, [meshes, snap.materials, snap.materialTypes, normalMap]);
+
   // Find all meshes in the model
   useEffect(() => {
     if (scene) {
@@ -120,13 +238,35 @@ const Shirt = () => {
             
             // Initialize material in state if not already there
             if (!snap.materials[materialName]) {
-              state.materials[materialName] = '#' + node.material.color.getHexString();
+              const initialColor = '#' + node.material.color.getHexString();
+              state.materials[materialName] = initialColor;
             }
             
             // Initialize material decorations if not already there
             if (!snap.materialDecorations[materialName]) {
               state.initMaterialDecorations(materialName);
             }
+            
+            // Initialize material type if not already there
+            if (!snap.materialTypes || !snap.materialTypes[materialName]) {
+              state.initMaterialType(materialName);
+            }
+            
+            // Enhance material properties for better lighting
+            node.material.roughness = 0.7; // Adjust for less glossy appearance
+            node.material.metalness = 0.2; // Add slight metallic quality
+            node.material.envMapIntensity = 1.0; // Control environment reflection intensity
+            
+            // Apply normal map
+            if (normalMap) {
+              node.material.normalMap = normalMap;
+              node.material.normalScale = new THREE.Vector2(1, 1); // Adjust normal intensity
+              node.material.needsUpdate = true;
+            }
+            
+            // Enable shadows
+            node.castShadow = true;
+            node.receiveShadow = true;
           }
           
           // Apply current color from state
@@ -146,9 +286,14 @@ const Shirt = () => {
         if (!snap.materialDecorations[firstMaterialName]) {
           state.initMaterialDecorations(firstMaterialName);
         }
+        
+        // Initialize material type if not already there
+        if (!snap.materialTypes || !snap.materialTypes[firstMaterialName]) {
+          state.initMaterialType(firstMaterialName);
+        }
       }
     }
-  }, [scene]);
+  }, [scene, normalMap]);
 
   // Update material colors in real-time
   useFrame((state, delta) => {
@@ -173,7 +318,13 @@ const Shirt = () => {
 
   return (
     <>
-      <OrbitControls />
+      <OrbitControls 
+        enablePan={false} 
+        enableZoom={true} 
+        enableRotate={true}
+        minDistance={1}
+        maxDistance={10}
+      />
       {meshes.map((node, index) => (
         <group key={`${index}-${forceUpdate}`}>
           <mesh

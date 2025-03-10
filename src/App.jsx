@@ -6,8 +6,10 @@ function App() {
   return (
     <main className="app transition-all ease-in">
       <Navbar />
-      <Canvas />
-      <Customizer />
+      <div className="app-content">
+        <Canvas />
+        <Customizer />
+      </div>
     </main>
   )
 }
