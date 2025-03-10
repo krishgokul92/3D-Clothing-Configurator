@@ -16,10 +16,46 @@ const state = proxy({
   },
   activeMaterial: null, // Currently selected material for editing
   
+  // Pattern overlay control
+  isPatternVisible: true, // Toggle for pattern visibility
+  patternOpacity: 0.5,    // Opacity level for the pattern
+  patternColor: '#ffffff', // Color tint for the pattern
+  patternScale: 4,        // Scale factor for the pattern (higher = smaller pattern)
+  selectedPattern: 'pattern2.png', // Currently selected pattern file
+  
+  // Available patterns
+  availablePatterns: [
+    { name: 'Pattern 1', file: 'pattern1.png' },
+    { name: 'Pattern 2', file: 'pattern2.png' },
+    { name: 'Pattern 3', file: 'pattern3.png' },
+  ],
+  
   // Material-specific decorations
   materialDecorations: {
     // Will be populated with material-specific decorations
     // Structure: {materialName: {logos: [], texts: []}}
+  },
+  
+  // Function to toggle pattern visibility
+  togglePattern: () => {
+    state.isPatternVisible = !state.isPatternVisible;
+  },
+  
+  // Function to update pattern opacity
+  updatePatternOpacity: (opacity) => {
+    state.patternOpacity = opacity;
+  },
+  
+  // Function to update pattern color
+  updatePatternColor: (color) => {
+    console.log("Store: Updating pattern color to:", color);
+    state.patternColor = color;
+    console.log("Store: Pattern color is now:", state.patternColor);
+  },
+  
+  // Function to update pattern scale
+  updatePatternScale: (scale) => {
+    state.patternScale = scale;
   },
   
   // Function to update a material color
@@ -284,6 +320,12 @@ const state = proxy({
   logoRotation: 0,
   logoPositionX: 0,
   logoPositionY: 0,
+  
+  // Function to update selected pattern
+  updateSelectedPattern: (patternFile) => {
+    console.log("Store: Updating selected pattern to:", patternFile);
+    state.selectedPattern = patternFile;
+  },
 });
 
 export default state;

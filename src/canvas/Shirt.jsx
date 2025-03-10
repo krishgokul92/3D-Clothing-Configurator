@@ -17,11 +17,58 @@ const Shirt = () => {
   const textTexturesRef = useRef({});
   const gradientTexturesRef = useRef({});
   const [forceUpdate, setForceUpdate] = useState(0);
-  
+  const patternTextureRef = useRef();
+  const [targetMaterial, setTargetMaterial] = useState('');
+  const patternMaterialRef = useRef();
+
   const logoTexture = useTexture(snap.frontLogoDecal);
   const fullTexture = useTexture(snap.fullDecal);
   const backLogoTexture = useTexture(snap.backLogoDecal);
+
+  // Load pattern texture
+  useEffect(() => {
+    const textureLoader = new THREE.TextureLoader();
+    textureLoader.load(`/pattern/${snap.selectedPattern}`, (texture) => {
+      texture.wrapS = THREE.RepeatWrapping;
+      texture.wrapT = THREE.RepeatWrapping;
+      texture.repeat.set(snap.patternScale, snap.patternScale); // Use pattern scale from state
+      patternTextureRef.current = texture;
+      console.log(`Pattern texture loaded successfully: ${snap.selectedPattern}`);
+      
+      // Create a new material with the texture
+      updatePatternMaterial();
+      
+      setForceUpdate(prev => prev + 1);
+    }, 
+    undefined, // onProgress callback
+    (error) => {
+      console.error(`Error loading pattern texture ${snap.selectedPattern}:`, error);
+    });
+  }, [snap.patternScale, snap.selectedPattern]); // Re-run when pattern scale or selected pattern changes
+
+  // Update pattern material when color or opacity changes
+  useEffect(() => {
+    updatePatternMaterial();
+  }, [snap.patternColor, snap.patternOpacity]);
   
+  // Function to update the pattern material
+  const updatePatternMaterial = () => {
+    if (patternTextureRef.current) {
+      // Create a new material with updated properties
+      const material = new THREE.MeshBasicMaterial({
+        map: patternTextureRef.current,
+        transparent: true,
+        opacity: snap.patternOpacity,
+        blending: THREE.NormalBlending,
+        color: new THREE.Color(snap.patternColor),
+      });
+      
+      patternMaterialRef.current = material;
+      console.log("Pattern material updated with color:", snap.patternColor);
+      setForceUpdate(prev => prev + 1);
+    }
+  };
+
   // Create a texture from text content
   const createTextTexture = (textConfig) => {
     try {
@@ -58,7 +105,7 @@ const Shirt = () => {
   // Create a gradient texture
   const createGradientTexture = (gradientConfig) => {
     try {
-      const canvas = document.createElement('canvas');
+    const canvas = document.createElement('canvas');
       const context = canvas.getContext('2d');
       
       // Set canvas size
@@ -194,39 +241,31 @@ const Shirt = () => {
   useEffect(() => {
     if (scene) {
       const foundMeshes = [];
+      const materialNames = new Set();
+      
+      console.log("Scanning model for materials...");
+      
       scene.traverse((node) => {
         if (node.isMesh && node.material) {
           foundMeshes.push(node);
           
-          // Store the original material
+          // Log material name
           const materialName = node.material.name;
+          materialNames.add(materialName);
+          
+          // Store the original material
           if (!materialsRef.current[materialName]) {
             materialsRef.current[materialName] = node.material.clone();
             
             // Initialize material in state if not already there
             if (!snap.materials[materialName]) {
-              const initialColor = '#' + node.material.color.getHexString();
-              state.materials[materialName] = initialColor;
+              state.materials[materialName] = '#' + node.material.color.getHexString();
             }
             
             // Initialize material decorations if not already there
             if (!snap.materialDecorations[materialName]) {
               state.initMaterialDecorations(materialName);
             }
-            
-            // Initialize material type if not already there
-            if (!snap.materialTypes || !snap.materialTypes[materialName]) {
-              state.initMaterialType(materialName);
-            }
-            
-            // Enhance material properties for better lighting
-            node.material.roughness = 0.7; // Adjust for less glossy appearance
-            node.material.metalness = 0.2; // Add slight metallic quality
-            node.material.envMapIntensity = 1.0; // Control environment reflection intensity
-            
-            // Enable shadows
-            node.castShadow = true;
-            node.receiveShadow = true;
           }
           
           // Apply current color from state
@@ -235,6 +274,16 @@ const Shirt = () => {
           }
         }
       });
+      
+      console.log("Available materials:", Array.from(materialNames));
+      
+      // Set the first material as the target for the pattern overlay
+      if (materialNames.size > 0) {
+        const materialNamesArray = Array.from(materialNames);
+        setTargetMaterial(materialNamesArray[0]);
+        console.log("Setting pattern overlay on material:", materialNamesArray[0]);
+      }
+      
       setMeshes(foundMeshes);
       
       // Set first material as active if none is selected
@@ -246,14 +295,9 @@ const Shirt = () => {
         if (!snap.materialDecorations[firstMaterialName]) {
           state.initMaterialDecorations(firstMaterialName);
         }
-        
-        // Initialize material type if not already there
-        if (!snap.materialTypes || !snap.materialTypes[firstMaterialName]) {
-          state.initMaterialType(firstMaterialName);
-        }
       }
     }
-  }, [scene]);
+  }, [scene, patternTextureRef.current]);
 
   // Update material colors in real-time
   useFrame((state, delta) => {
@@ -274,6 +318,14 @@ const Shirt = () => {
     }
   });
 
+  // Update pattern scale when it changes in the state
+  useEffect(() => {
+    if (patternTextureRef.current) {
+      patternTextureRef.current.repeat.set(snap.patternScale, snap.patternScale);
+      patternTextureRef.current.needsUpdate = true;
+    }
+  }, [snap.patternScale]);
+
   if (meshes.length === 0) return null;
 
   return (
@@ -285,135 +337,147 @@ const Shirt = () => {
         minDistance={1}
         maxDistance={10}
       />
-      {meshes.map((node, index) => (
-        <group key={`${index}-${forceUpdate}`}>
-          <mesh
-            castShadow
-            geometry={node.geometry}
-            material={node.material}
-            material-roughness={1}
-            dispose={null}
-          >
-            {/* Global decorations */}
-            {node.material.name === 'lambert1' && (
-              <>
-                {snap.isFullTexture && (
-                  <Decal 
-                    position={[0, 0, 0]}
-                    rotation={[0, 0, 0]}
-                    scale={1}
-                    map={fullTexture}
-                  />
-                )}
-                
-                {snap.isFrontLogoTexture && (
-                  <Decal 
-                    position={snap.frontLogoPosition}
-                    rotation={[0, 0, 0]}
-                    scale={snap.frontLogoScale}
-                    map={logoTexture}
-                  />
-                )}
-                
-                {snap.isFrontText && (
-                  <Decal
-                    position={snap.frontTextPosition}
-                    rotation={snap.frontTextRotation}
-                    scale={snap.frontTextScale}
-                    map={createTextTexture({
-                      content: snap.frontText,
-                      font: snap.frontTextFont,
-                      size: snap.frontTextSize,
-                      color: snap.frontTextColor
-                    })}
-                  />
-                )}
-                
-                {snap.isBackLogoTexture && (
-                  <Decal 
-                    position={snap.backLogoPosition}
-                    rotation={snap.backLogoRotation}
-                    scale={snap.backLogoScale}
-                    map={backLogoTexture}
-                  />
-                )}
-                
-                {snap.isBackText && (
-                  <Decal
-                    position={snap.backTextPosition}
-                    rotation={snap.backTextRotation}
-                    scale={snap.backTextScale}
-                    map={createTextTexture({
-                      content: snap.backText,
-                      font: snap.backTextFont,
-                      size: snap.backTextSize,
-                      color: snap.backTextColor
-                    })}
-                  />
-                )}
-              </>
-            )}
-            
-            {/* Material-specific decorations */}
-            {(() => {
-              const materialName = node.material.name;
-              const materialDecor = snap.materialDecorations[materialName];
-              
-              if (!materialDecor) return null;
-              
-              return (
+      {meshes.map((node, index) => {
+        const materialName = node.material.name;
+        const shouldApplyPattern = materialName === targetMaterial;
+        
+        return (
+          <group key={`${index}-${forceUpdate}`}>
+            {/* Render the base mesh with its material */}
+        <mesh
+              castShadow
+              geometry={node.geometry}
+              material={node.material}
+              material-roughness={1}
+          dispose={null}
+        >
+              {/* Global decorations */}
+              {node.material.name === 'lambert1' && (
                 <>
-                  {/* Render logos for this material */}
-                  {materialDecor.logos && materialDecor.logos.map((logo) => {
-                    // Skip if logo is disabled or has no image
-                    if (!logo.enabled || !logo.image) {
-                      console.log(`Skipping logo for ${materialName}, logo ID: ${logo.id} - enabled: ${logo.enabled}, has image: ${!!logo.image}`);
-                      return null;
-                    }
-                    
-                    // Skip if texture isn't loaded yet
-                    if (!materialLogos.current[materialName] || 
-                        !materialLogos.current[materialName][logo.id]) {
-                      console.log(`Texture not loaded yet for ${materialName}, logo ID: ${logo.id}`);
-                      return null;
-                    }
-                    
-                    console.log(`Rendering logo for ${materialName}, logo ID: ${logo.id}`);
-                    return (
-                      <Decal
-                        key={`logo-${materialName}-${logo.id}-${forceUpdate}`}
-                        position={logo.position}
-                        rotation={logo.rotation}
-                        scale={logo.scale}
-                        map={materialLogos.current[materialName][logo.id]}
-                      />
-                    );
-                  })}
+          {snap.isFullTexture && (
+            <Decal
+              position={[0, 0, 0]}
+              rotation={[0, 0, 0]}
+              scale={1}
+              map={fullTexture}
+            />
+          )}
+
+          {snap.isFrontLogoTexture && (
+              <Decal
+                position={snap.frontLogoPosition}
+                rotation={[0, 0, 0]}
+                scale={snap.frontLogoScale}
+                map={logoTexture}
+              />
+          )}
                   
-                  {/* Render texts for this material */}
-                  {materialDecor.texts && materialDecor.texts.map((text) => {
-                    if (!text.enabled || !text.content) return null;
-                    
-                    // Create a new texture on the fly
-                    const textTexture = createTextTexture(text);
-                    if (!textTexture) return null;
-                    
-                    return (
-                      <Decal
-                        key={`text-${materialName}-${text.id}-${forceUpdate}`}
-                        position={text.position}
-                        rotation={text.rotation}
-                        scale={0.15}
-                        map={textTexture}
-                      />
-                    );
-                  })}
+          {snap.isFrontText && (
+          <Decal
+            position={snap.frontTextPosition}
+            rotation={snap.frontTextRotation}
+            scale={snap.frontTextScale}
+                      map={createTextTexture({
+                        content: snap.frontText,
+                        font: snap.frontTextFont,
+                        size: snap.frontTextSize,
+                        color: snap.frontTextColor
+                      })}
+          />
+          )}
+
+          {snap.isBackLogoTexture && (
+            <Decal
+              position={snap.backLogoPosition}
+              rotation={snap.backLogoRotation}
+              scale={snap.backLogoScale}
+              map={backLogoTexture}
+            />
+          )}
+                  
+          {snap.isBackText && (
+            <Decal
+              position={snap.backTextPosition}
+              rotation={snap.backTextRotation}
+              scale={snap.backTextScale}
+                      map={createTextTexture({
+                        content: snap.backText,
+                        font: snap.backTextFont,
+                        size: snap.backTextSize,
+                        color: snap.backTextColor
+                      })}
+                    />
+                  )}
                 </>
-              );
-            })()}
-          </mesh>
-        </group>
-      ))}
+              )}
+              
+              {/* Material-specific decorations */}
+              {(() => {
+                const materialName = node.material.name;
+                const materialDecor = snap.materialDecorations[materialName];
+                
+                if (!materialDecor) return null;
+                
+                return (
+                  <>
+                    {/* Render logos for this material */}
+                    {materialDecor.logos && materialDecor.logos.map((logo) => {
+                      // Skip if logo is disabled or has no image
+                      if (!logo.enabled || !logo.image) {
+                        return null;
+                      }
+                      
+                      // Skip if texture isn't loaded yet
+                      if (!materialLogos.current[materialName] || 
+                          !materialLogos.current[materialName][logo.id]) {
+                        return null;
+                      }
+                      
+                      return (
+                        <Decal
+                          key={`logo-${materialName}-${logo.id}-${forceUpdate}`}
+                          position={logo.position}
+                          rotation={logo.rotation}
+                          scale={logo.scale}
+                          map={materialLogos.current[materialName][logo.id]}
+                        />
+                      );
+                    })}
+                    
+                    {/* Render texts for this material */}
+                    {materialDecor.texts && materialDecor.texts.map((text) => {
+                      if (!text.enabled || !text.content) return null;
+                      
+                      // Create a new texture on the fly
+                      const textTexture = createTextTexture(text);
+                      if (!textTexture) return null;
+                      
+                      return (
+                        <Decal
+                          key={`text-${materialName}-${text.id}-${forceUpdate}`}
+                          position={text.position}
+                          rotation={text.rotation}
+                          scale={0.15}
+                          map={textTexture}
+                        />
+                      );
+                    })}
+                  </>
+                );
+              })()}
+        </mesh>
+            
+            {/* Add pattern overlay for target material */}
+            {shouldApplyPattern && patternTextureRef.current && patternMaterialRef.current && snap.isPatternVisible && (
+              <mesh
+                geometry={node.geometry}
+                material={patternMaterialRef.current}
+                renderOrder={1} // Ensure it renders after the base material
+              />
+            )}
+      </group>
+        );
+      })}
     </>
   );
 };

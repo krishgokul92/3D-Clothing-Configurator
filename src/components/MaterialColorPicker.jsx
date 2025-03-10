@@ -7,7 +7,7 @@ const MaterialColorPicker = () => {
   const snap = useSnapshot(state);
   const [materialsList, setMaterialsList] = useState([]);
   const [activeMaterial, setActiveMaterial] = useState(null);
-  const [activeDecorTab, setActiveDecorTab] = useState('color'); // 'color', 'logo', 'text'
+  const [activeDecorTab, setActiveDecorTab] = useState('color'); // 'color', 'logo', 'text', 'pattern'
   const [activeLogoId, setActiveLogoId] = useState(null);
   const [activeTextId, setActiveTextId] = useState(null);
   const [logoFile, setLogoFile] = useState(null);
@@ -397,6 +397,12 @@ const MaterialColorPicker = () => {
           onClick={() => setActiveDecorTab('text')}
         >
           Texts
+        </button>
+        <button 
+          className={`decor-tab ${activeDecorTab === 'pattern' ? 'active' : ''}`}
+          onClick={() => setActiveDecorTab('pattern')}
+        >
+          Pattern
         </button>
       </div>
       
@@ -958,6 +964,101 @@ const MaterialColorPicker = () => {
                   )}
                 </div>
               ))}
+            </div>
+          )}
+        </div>
+      )}
+      
+      {/* Pattern Editor */}
+      {currentMaterial && activeDecorTab === 'pattern' && (
+        <div className="material-pattern-editor">
+          <div className="toggle-container">
+            <label className="toggle-label">Enable Pattern Overlay</label>
+            <div 
+              className={`toggle-switch ${snap.isPatternVisible ? 'active' : ''}`}
+              onClick={() => state.togglePattern()}
+            >
+              <div className="toggle-slider"></div>
+            </div>
+          </div>
+          
+          {snap.isPatternVisible && (
+            <div className="pattern-properties">
+              <h3 className="subsection-title">Pattern Properties</h3>
+              
+              {/* Pattern Selection */}
+              <div className="property-group">
+                <label>Select Pattern</label>
+                <div className="pattern-grid">
+                  {snap.availablePatterns.map((pattern) => (
+                    <div 
+                      key={pattern.file}
+                      className={`pattern-item ${snap.selectedPattern === pattern.file ? 'active' : ''}`}
+                      onClick={() => state.updateSelectedPattern(pattern.file)}
+                    >
+                      <div className="pattern-image-container">
+                        <img 
+                          src={`/pattern/${pattern.file}`} 
+                          alt={pattern.name}
+                          className="pattern-image"
+                        />
+                      </div>
+                      <div className="pattern-name">{pattern.name}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              
+              <div className="property-group">
+                <label>Opacity</label>
+                <input 
+                  type="range" 
+                  min="0.1" 
+                  max="1" 
+                  step="0.05"
+                  value={snap.patternOpacity}
+                  onChange={(e) => state.updatePatternOpacity(parseFloat(e.target.value))}
+                  className="modern-slider"
+                />
+                <div className="slider-value">{snap.patternOpacity.toFixed(2)}</div>
+              </div>
+              
+              <div className="property-group">
+                <label>Scale</label>
+                <input 
+                  type="range" 
+                  min="1" 
+                  max="10" 
+                  step="0.5"
+                  value={snap.patternScale}
+                  onChange={(e) => state.updatePatternScale(parseFloat(e.target.value))}
+                  className="modern-slider"
+                />
+                <div className="slider-value">{snap.patternScale.toFixed(1)}</div>
+              </div>
+              
+              <div className="property-group">
+                <label>Color Tint</label>
+                <div className="pattern-color-preview" style={{ backgroundColor: snap.patternColor }}></div>
+                <div className="pattern-color-picker">
+                  <SketchPicker 
+                    color={snap.patternColor}
+                    onChange={(color) => {
+                      console.log("Pattern color changed to:", color.hex);
+                      state.updatePatternColor(color.hex);
+                    }}
+                    disableAlpha
+                    width="100%"
+                    presetColors={[
+                      '#FFFFFF', '#F8F8F8', '#F0F0F0', '#E0E0E0',
+                      '#C0C0C0', '#A0A0A0', '#808080', '#606060',
+                      '#404040', '#202020', '#000000', '#FF0000',
+                      '#00FF00', '#0000FF', '#FFFF00', '#00FFFF',
+                      '#FF00FF', '#FFA500', '#800080', '#008000'
+                    ]}
+                  />
+                </div>
+              </div>
             </div>
           )}
         </div>
