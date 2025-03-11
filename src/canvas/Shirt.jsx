@@ -120,6 +120,11 @@ const Shirt = () => {
             texture.repeat.set(textureSettings.scale, textureSettings.scale);
             texture.anisotropy = 16; // Improve texture quality
             
+            // Ensure proper RGBA encoding for alpha channel
+            texture.encoding = THREE.sRGBEncoding;
+            texture.premultiplyAlpha = true; // Handle alpha correctly
+            texture.flipY = false; // Prevent texture flipping
+            
             // Store the texture with its file name for identification
             texture.userData = { fileName: textureSettings.texture };
             textureTexturesRef.current[materialName] = texture;
@@ -150,7 +155,12 @@ const Shirt = () => {
         
         // If there was a texture material before, remove it
         if (node.userData && node.userData.textureMaterial) {
+          if (node.userData.textureMaterial.map) {
+            node.userData.textureMaterial.map.dispose();
+          }
+          node.userData.textureMaterial.dispose();
           node.userData.textureMaterial = null;
+          node.userData.hasTextureOverlay = false;
         }
         return false;
       }
@@ -158,12 +168,43 @@ const Shirt = () => {
       const textureSettings = snap.materialTextures[materialName];
       const currentTexture = textureTexturesRef.current[materialName];
       
+      // Check if we need to update the existing material due to color change
+      if (node.userData && node.userData.textureMaterial && currentTexture) {
+        // Update color if it has changed
+        if (textureSettings.color) {
+          node.userData.textureMaterial.color.set(textureSettings.color);
+        }
+        
+        // Update opacity if it has changed
+        if (node.userData.textureMaterial.opacity !== textureSettings.opacity) {
+          node.userData.textureMaterial.opacity = textureSettings.opacity;
+        }
+        
+        // Update scale if it has changed
+        if (currentTexture.repeat.x !== textureSettings.scale) {
+          currentTexture.repeat.set(textureSettings.scale, textureSettings.scale);
+          currentTexture.needsUpdate = true;
+        }
+        
+        node.userData.textureMaterial.needsUpdate = true;
+        
+        // If we're just updating properties, we can return early
+        if (currentTexture.userData && currentTexture.userData.fileName === textureSettings.texture) {
+          return true;
+        }
+      }
+      
       // Check if we need to load a new texture or update an existing one
       const needsNewTexture = !currentTexture || 
                              (currentTexture.userData && 
                               currentTexture.userData.fileName !== textureSettings.texture);
       
       if (needsNewTexture) {
+        // If there was a previous texture, dispose it properly
+        if (currentTexture) {
+          currentTexture.dispose();
+        }
+        
         // Load the new texture
         loadPatternTexture(materialName, textureSettings)
           .then(texture => {
@@ -200,14 +241,31 @@ const Shirt = () => {
       map: texture,
       transparent: true,
       opacity: textureSettings.opacity,
-      blending: THREE.MultiplyBlending, // This will multiply the texture with the base color
+      alphaTest: 0.1, // Discard pixels with alpha below this threshold
+      blending: THREE.CustomBlending, // Use custom blending for better alpha handling
+      blendSrc: THREE.SrcAlphaFactor, // Use the alpha of the source
+      blendDst: THREE.OneMinusSrcAlphaFactor, // Use one minus the alpha of the source
+      blendEquation: THREE.AddEquation, // Add the source and destination
+      depthWrite: false, // Don't write to depth buffer for transparent objects
+      depthTest: true, // But still test against depth buffer
       side: THREE.DoubleSide
     });
+    
+    // Apply color tint to the texture material
+    if (textureSettings.color && textureSettings.color !== '#ffffff') {
+      console.log(`Applying color ${textureSettings.color} to texture material for ${materialName}`);
+      textureMaterial.color = new THREE.Color(textureSettings.color);
+    } else {
+      textureMaterial.color = new THREE.Color('#ffffff');
+    }
     
     // Store the texture material
     if (!node.userData) node.userData = {};
     node.userData.textureMaterial = textureMaterial;
     node.userData.hasTextureOverlay = true;
+    
+    // Force material update
+    textureMaterial.needsUpdate = true;
   };
   
   // Load material-specific logos when they change
@@ -447,16 +505,32 @@ const Shirt = () => {
         
         // Apply or update the texture
         applyPatternTexture(node, materialName);
+        
+        // If the texture is already applied, update the color directly
+        if (node.userData && node.userData.textureMaterial && textureSettings.enabled) {
+          if (textureSettings.color) {
+            console.log(`Directly updating color to ${textureSettings.color} for ${materialName}`);
+            node.userData.textureMaterial.color.set(textureSettings.color);
+            node.userData.textureMaterial.needsUpdate = true;
+          }
+        }
       }
     });
   }, [meshes, snap.materialTextures]);
   
-  // Use a separate effect to track when specific texture properties change
+  // Listen for color change events
   useEffect(() => {
-    // This effect doesn't need to do anything, it just forces a re-render
-    // when the stringified materialTextures changes
-    console.log("Texture properties changed");
-  }, [JSON.stringify(snap.materialTextures)]);
+    const handleColorChange = () => {
+      console.log("Color change event detected, forcing update");
+      setForceUpdate(prev => prev + 1);
+    };
+    
+    window.addEventListener('colorchange', handleColorChange);
+    
+    return () => {
+      window.removeEventListener('colorchange', handleColorChange);
+    };
+  }, []);
 
   if (meshes.length === 0) return null;
 
@@ -614,7 +688,11 @@ const Shirt = () => {
                 rotation={node.rotation}
                 scale={node.scale}
                 renderOrder={2} // Ensure it renders after the base material
-              />
+                userData={{ isTextureOverlay: true }}
+              >
+                {/* This empty fragment ensures the mesh is properly updated when texture properties change */}
+                <></>
+              </mesh>
             )}
           </group>
         );
