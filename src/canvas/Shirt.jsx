@@ -168,32 +168,6 @@ const Shirt = () => {
       const textureSettings = snap.materialTextures[materialName];
       const currentTexture = textureTexturesRef.current[materialName];
       
-      // Check if we need to update the existing material due to color change
-      if (node.userData && node.userData.textureMaterial && currentTexture) {
-        // Update color if it has changed
-        if (textureSettings.color) {
-          node.userData.textureMaterial.color.set(textureSettings.color);
-        }
-        
-        // Update opacity if it has changed
-        if (node.userData.textureMaterial.opacity !== textureSettings.opacity) {
-          node.userData.textureMaterial.opacity = textureSettings.opacity;
-        }
-        
-        // Update scale if it has changed
-        if (currentTexture.repeat.x !== textureSettings.scale) {
-          currentTexture.repeat.set(textureSettings.scale, textureSettings.scale);
-          currentTexture.needsUpdate = true;
-        }
-        
-        node.userData.textureMaterial.needsUpdate = true;
-        
-        // If we're just updating properties, we can return early
-        if (currentTexture.userData && currentTexture.userData.fileName === textureSettings.texture) {
-          return true;
-        }
-      }
-      
       // Check if we need to load a new texture or update an existing one
       const needsNewTexture = !currentTexture || 
                              (currentTexture.userData && 
@@ -251,21 +225,10 @@ const Shirt = () => {
       side: THREE.DoubleSide
     });
     
-    // Apply color tint to the texture material
-    if (textureSettings.color && textureSettings.color !== '#ffffff') {
-      console.log(`Applying color ${textureSettings.color} to texture material for ${materialName}`);
-      textureMaterial.color = new THREE.Color(textureSettings.color);
-    } else {
-      textureMaterial.color = new THREE.Color('#ffffff');
-    }
-    
     // Store the texture material
     if (!node.userData) node.userData = {};
     node.userData.textureMaterial = textureMaterial;
     node.userData.hasTextureOverlay = true;
-    
-    // Force material update
-    textureMaterial.needsUpdate = true;
   };
   
   // Load material-specific logos when they change
@@ -505,32 +468,16 @@ const Shirt = () => {
         
         // Apply or update the texture
         applyPatternTexture(node, materialName);
-        
-        // If the texture is already applied, update the color directly
-        if (node.userData && node.userData.textureMaterial && textureSettings.enabled) {
-          if (textureSettings.color) {
-            console.log(`Directly updating color to ${textureSettings.color} for ${materialName}`);
-            node.userData.textureMaterial.color.set(textureSettings.color);
-            node.userData.textureMaterial.needsUpdate = true;
-          }
-        }
       }
     });
   }, [meshes, snap.materialTextures]);
   
-  // Listen for color change events
+  // Use a separate effect to track when specific texture properties change
   useEffect(() => {
-    const handleColorChange = () => {
-      console.log("Color change event detected, forcing update");
-      setForceUpdate(prev => prev + 1);
-    };
-    
-    window.addEventListener('colorchange', handleColorChange);
-    
-    return () => {
-      window.removeEventListener('colorchange', handleColorChange);
-    };
-  }, []);
+    // This effect doesn't need to do anything, it just forces a re-render
+    // when the stringified materialTextures changes
+    console.log("Texture properties changed");
+  }, [JSON.stringify(snap.materialTextures)]);
 
   if (meshes.length === 0) return null;
 

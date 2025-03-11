@@ -1029,43 +1029,6 @@ const MaterialColorPicker = () => {
                 </div>
               </div>
               
-              {/* Texture Color */}
-              <div className="property-group">
-                <label>Texture Color</label>
-                <div className="texture-color-control">
-                  <div 
-                    className="texture-color-preview" 
-                    style={{ backgroundColor: snap.materialTextures[activeMaterial]?.color || '#ffffff' }}
-                  ></div>
-                  <div className="texture-color-picker">
-                    <SketchPicker 
-                      color={snap.materialTextures[activeMaterial]?.color || '#ffffff'}
-                      onChange={(color) => {
-                        const hexColor = color.hex;
-                        console.log(`Changing texture color for ${activeMaterial} to ${hexColor}`);
-                        state.updateTextureColor(activeMaterial, hexColor);
-                        
-                        // Force a re-render
-                        setTimeout(() => {
-                          // This is a hack to force a re-render after the state has been updated
-                          const dummyEvent = new Event('colorchange');
-                          window.dispatchEvent(dummyEvent);
-                        }, 10);
-                      }}
-                      disableAlpha
-                      width="100%"
-                      presetColors={[
-                        '#FFFFFF', '#F8F8F8', '#F0F0F0', '#E0E0E0',
-                        '#C0C0C0', '#A0A0A0', '#808080', '#606060',
-                        '#404040', '#202020', '#000000', '#FF0000',
-                        '#00FF00', '#0000FF', '#FFFF00', '#00FFFF',
-                        '#FF00FF', '#FFA500', '#800080', '#008000'
-                      ]}
-                    />
-                  </div>
-                </div>
-              </div>
-              
               <div className="property-group">
                 <label>Opacity: {(snap.materialTextures[activeMaterial]?.opacity || 0.8).toFixed(2)}</label>
                 <input 
