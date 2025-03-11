@@ -267,11 +267,15 @@ const state = proxy({
     
     state.materialDecorations[materialName].logos.push({
       id: Date.now().toString(),
-      enabled: true,
+      visible: true,
       image: null,
       scale: 0.15,
-      position: [0, 0, 0],
-      rotation: [0, 0, 0]
+      position: {
+        x: 0,
+        y: 0,
+        z: 0
+      },
+      rotation: 0
     });
   },
   
@@ -283,14 +287,17 @@ const state = proxy({
     
     state.materialDecorations[materialName].texts.push({
       id: Date.now().toString(),
-      enabled: true,
+      visible: true,
       content: 'Sample Text',
       font: 'Arial',
       size: 64,
       color: 'white',
-      scale: [0.15, 0.04, 0.1],
-      position: [0, 0, 0],
-      rotation: [0, 0, 0]
+      position: {
+        x: 0,
+        y: 0,
+        z: 0
+      },
+      rotation: 0
     });
   },
   
@@ -315,7 +322,7 @@ const state = proxy({
     if (state.materialDecorations[materialName] && state.materialDecorations[materialName].logos) {
       const logo = state.materialDecorations[materialName].logos.find(l => l.id === logoId);
       if (logo) {
-        logo.enabled = !logo.enabled;
+        logo.visible = !logo.visible;
       }
     }
   },
@@ -325,7 +332,7 @@ const state = proxy({
     if (state.materialDecorations[materialName] && state.materialDecorations[materialName].texts) {
       const text = state.materialDecorations[materialName].texts.find(t => t.id === textId);
       if (text) {
-        text.enabled = !text.enabled;
+        text.visible = !text.visible;
       }
     }
   },
@@ -346,7 +353,7 @@ const state = proxy({
       const logo = state.materialDecorations[materialName].logos.find(l => l.id === logoId);
       if (logo) {
         logo.image = image;
-        logo.enabled = true; // Ensure logo is enabled when image is set
+        logo.visible = true; // Ensure logo is enabled when image is set
         console.log(`Store: Logo image updated successfully for ${materialName}, logo ID: ${logoId}`);
       } else {
         console.error(`Store: Logo with ID ${logoId} not found for material ${materialName}`);
@@ -371,7 +378,34 @@ const state = proxy({
     if (state.materialDecorations[materialName] && state.materialDecorations[materialName].logos) {
       const logo = state.materialDecorations[materialName].logos.find(l => l.id === logoId);
       if (logo) {
-        logo[property] = value;
+        // Handle position properties
+        if (property === 'positionX') {
+          if (!logo.position.x) {
+            // Convert from array to object if needed
+            logo.position = {
+              x: logo.position[0] || 0,
+              y: logo.position[1] || 0,
+              z: logo.position[2] || 0
+            };
+          }
+          logo.position.x = value;
+        } else if (property === 'positionY') {
+          if (!logo.position.x) {
+            // Convert from array to object if needed
+            logo.position = {
+              x: logo.position[0] || 0,
+              y: logo.position[1] || 0,
+              z: logo.position[2] || 0
+            };
+          }
+          logo.position.y = value;
+        } else if (property === 'rotation') {
+          // Store rotation as a single value instead of array
+          logo.rotation = value;
+        } else {
+          // For other properties like scale, just set directly
+          logo[property] = value;
+        }
       }
     }
   },
@@ -381,7 +415,34 @@ const state = proxy({
     if (state.materialDecorations[materialName] && state.materialDecorations[materialName].texts) {
       const text = state.materialDecorations[materialName].texts.find(t => t.id === textId);
       if (text) {
-        text[property] = value;
+        // Handle position properties
+        if (property === 'positionX') {
+          if (!text.position.x) {
+            // Convert from array to object if needed
+            text.position = {
+              x: text.position[0] || 0,
+              y: text.position[1] || 0,
+              z: text.position[2] || 0
+            };
+          }
+          text.position.x = value;
+        } else if (property === 'positionY') {
+          if (!text.position.x) {
+            // Convert from array to object if needed
+            text.position = {
+              x: text.position[0] || 0,
+              y: text.position[1] || 0,
+              z: text.position[2] || 0
+            };
+          }
+          text.position.y = value;
+        } else if (property === 'rotation') {
+          // Store rotation as a single value instead of array
+          text.rotation = value;
+        } else {
+          // For other properties like font, size, color, just set directly
+          text[property] = value;
+        }
       }
     }
   },

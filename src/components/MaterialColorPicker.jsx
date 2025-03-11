@@ -16,6 +16,7 @@ const MaterialColorPicker = () => {
   const [gradientColor2, setGradientColor2] = useState('#e74c3c'); // Default red
   const [gradientAngle, setGradientAngle] = useState(45);
   const [gradientType, setGradientType] = useState('linear');
+  const [showProperties, setShowProperties] = useState(false);
   
   // Predefined color palette - organized by color families
   const colorPalette = {
@@ -110,6 +111,7 @@ const MaterialColorPicker = () => {
     state.activeMaterial = materialName;
     setActiveLogoId(null);
     setActiveTextId(null);
+    setShowProperties(true);
     
     // Ensure material decorations are initialized for the selected material
     if (!snap.materialDecorations[materialName]) {
@@ -379,13 +381,15 @@ const MaterialColorPicker = () => {
       {/* Sidebar Navigation */}
       <div className="editor-sidebar">
         <div className="editor-logo">
-          <h2>Configurator</h2>
         </div>
         
         <div className="editor-nav">
           <button 
             className={`nav-item ${activeDecorTab === 'color' ? 'active' : ''}`}
-            onClick={() => setActiveDecorTab('color')}
+            onClick={() => {
+              setActiveDecorTab('color');
+              setShowProperties(false);
+            }}
           >
             <span className="nav-icon">🎨</span>
             <span className="nav-label">Color</span>
@@ -393,7 +397,10 @@ const MaterialColorPicker = () => {
           
           <button 
             className={`nav-item ${activeDecorTab === 'logo' ? 'active' : ''}`}
-            onClick={() => setActiveDecorTab('logo')}
+            onClick={() => {
+              setActiveDecorTab('logo');
+              setShowProperties(false);
+            }}
           >
             <span className="nav-icon">🖼️</span>
             <span className="nav-label">Logo</span>
@@ -401,7 +408,10 @@ const MaterialColorPicker = () => {
           
           <button 
             className={`nav-item ${activeDecorTab === 'text' ? 'active' : ''}`}
-            onClick={() => setActiveDecorTab('text')}
+            onClick={() => {
+              setActiveDecorTab('text');
+              setShowProperties(false);
+            }}
           >
             <span className="nav-icon">📝</span>
             <span className="nav-label">Text</span>
@@ -409,7 +419,10 @@ const MaterialColorPicker = () => {
           
           <button 
             className={`nav-item ${activeDecorTab === 'texture' ? 'active' : ''}`}
-            onClick={() => setActiveDecorTab('texture')}
+            onClick={() => {
+              setActiveDecorTab('texture');
+              setShowProperties(false);
+            }}
           >
             <span className="nav-icon">🧶</span>
             <span className="nav-label">Texture</span>
@@ -419,645 +432,628 @@ const MaterialColorPicker = () => {
       
       {/* Main Content Area */}
       <div className="editor-content">
-        {/* Material Selection */}
-        <div className="material-selector">
-          <h3>Materials</h3>
-          <div className="material-chips">
-            {materialsList.map((material) => (
-              <button
-                key={material.name}
-                className={`material-chip ${material.name === activeMaterial ? 'active' : ''}`}
-                onClick={() => handleMaterialChange(material.name)}
-                style={{ 
-                  backgroundColor: material.name === activeMaterial ? '#f0f0f0' : 'transparent',
-                  borderColor: material.name === activeMaterial ? '#1890ff' : '#e0e0e0'
-                }}
-              >
-                <div 
-                  className="material-chip-color" 
-                  style={{ backgroundColor: material.color }}
-                ></div>
-                <span className="material-chip-name">{material.name}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-        
-        {/* Tab Content */}
-        <div className="tab-content">
-          {/* Color Editor */}
-          {activeDecorTab === 'color' && currentMaterial && (
-            <div className="color-editor">
-              <div className="editor-header">
-                <h3>Color Settings</h3>
-                <div className="color-type-selector">
-                  <button 
-                    className={`color-type-btn ${materialType === 'solid' ? 'active' : ''}`}
-                    onClick={() => handleMaterialTypeChange('solid')}
-                  >
-                    Solid
-                  </button>
-                  <button 
-                    className={`color-type-btn ${materialType === 'gradient' ? 'active' : ''}`}
-                    onClick={() => handleMaterialTypeChange('gradient')}
-                  >
-                    Gradient
-                  </button>
-                </div>
-              </div>
-              
-              {/* Solid Color Editor */}
-              {materialType === 'solid' && (
-                <div className="solid-color-editor">
-                  <div className="color-preview" style={{ backgroundColor: getDisplayColor() }}></div>
-                  
-                  <div className="color-palette-container">
-                    <h4>Color Palette</h4>
-                    <div className="color-palette">
-                      {Object.entries(colorPalette).map(([family, colors]) => (
-                        <div key={family} className="color-family">
-                          {colors.map((color) => (
-                            <div
-                              key={color}
-                              className="color-swatch"
-                              style={{ backgroundColor: color }}
-                              onClick={() => handleQuickColorChange(color)}
-                            ></div>
-                          ))}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  
-                  <div className="custom-color-input">
-                    <h4>Custom Color</h4>
-                    <div className="color-input-row">
-                      <input
-                        type="text"
-                        value={colorInputValue}
-                        onChange={(e) => setColorInputValue(e.target.value)}
-                        placeholder="Enter hex color (#RRGGBB)"
-                        className="color-input-field"
-                      />
-                      <button 
-                        className="apply-color-btn"
-                        onClick={() => handleColorChange(colorInputValue)}
-                      >
-                        Apply
-                      </button>
-                    </div>
-                    
-                    <div className="sketch-picker-wrapper">
-                      <SketchPicker 
-                        color={getDisplayColor()}
-                        onChange={(color) => handleColorChange(color.hex)}
-                        disableAlpha
-                        width="100%"
-                        presetColors={[]}
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
-              
-              {/* Gradient Editor */}
-              {materialType === 'gradient' && (
-                <div className="gradient-editor">
-                  <div className="gradient-preview" style={getGradientPreviewStyle()}></div>
-                  
-                  <div className="gradient-controls">
-                    <div className="gradient-type-selector">
-                      <label>Gradient Type:</label>
-                      <div className="gradient-type-options">
-                        <button 
-                          className={`gradient-type-btn ${gradientType === 'linear' ? 'active' : ''}`}
-                          onClick={() => handleGradientChange('type', 'linear')}
-                        >
-                          Linear
-                        </button>
-                        <button 
-                          className={`gradient-type-btn ${gradientType === 'radial' ? 'active' : ''}`}
-                          onClick={() => handleGradientChange('type', 'radial')}
-                        >
-                          Radial
-                        </button>
-                      </div>
-                    </div>
-                    
-                    {gradientType === 'linear' && (
-                      <div className="gradient-angle-control">
-                        <label htmlFor="angleSlider">Angle: {gradientAngle}°</label>
-                        <input
-                          id="angleSlider"
-                          type="range"
-                          min="0"
-                          max="360"
-                          value={gradientAngle}
-                          onChange={(e) => handleGradientChange('angle', parseInt(e.target.value))}
-                          className="modern-slider"
-                        />
-                      </div>
-                    )}
-                    
-                    <div className="gradient-color-controls">
-                      <div className="gradient-color-control">
-                        <label>Color 1:</label>
-                        <div className="color-input-row">
-                          <div 
-                            className="gradient-color-preview" 
-                            style={{ backgroundColor: gradientColor1 }}
-                          ></div>
-                          <input
-                            type="text"
-                            value={gradientColor1}
-                            onChange={(e) => handleGradientChange('color1', e.target.value)}
-                            className="color-input-field"
-                          />
-                        </div>
-                        <div className="sketch-picker-wrapper">
-                          <SketchPicker 
-                            color={gradientColor1}
-                            onChange={(color) => handleGradientChange('color1', color.hex)}
-                            disableAlpha
-                            width="100%"
-                            presetColors={[]}
-                          />
-                        </div>
-                      </div>
-                      
-                      <div className="gradient-color-control">
-                        <label>Color 2:</label>
-                        <div className="color-input-row">
-                          <div 
-                            className="gradient-color-preview" 
-                            style={{ backgroundColor: gradientColor2 }}
-                          ></div>
-                          <input
-                            type="text"
-                            value={gradientColor2}
-                            onChange={(e) => handleGradientChange('color2', e.target.value)}
-                            className="color-input-field"
-                          />
-                        </div>
-                        <div className="sketch-picker-wrapper">
-                          <SketchPicker 
-                            color={gradientColor2}
-                            onChange={(color) => handleGradientChange('color2', color.hex)}
-                            disableAlpha
-                            width="100%"
-                            presetColors={[]}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-          
-          {/* Logo Editor */}
-          {activeDecorTab === 'logo' && currentMaterial && (
-            <div className="logo-editor">
-              <div className="editor-header">
-                <h3>Logo Settings</h3>
-                <button 
-                  className="add-item-btn"
-                  onClick={handleAddLogo}
+        <div className="editor-layout">
+          {/* Materials List */}
+          <div className={`materials-list-container ${showProperties ? 'shift' : ''}`}>
+            <h3>Materials</h3>
+            <div className="materials-list">
+              {materialsList.map((material) => (
+                <div
+                  key={material.name}
+                  className={`material-item ${material.name === activeMaterial ? 'active' : ''}`}
+                  onClick={() => handleMaterialChange(material.name)}
                 >
-                  Add Logo
-                </button>
-              </div>
-              
-              {snap.materialDecorations[activeMaterial]?.logos?.length > 0 ? (
-                <div className="logos-list">
-                  {snap.materialDecorations[activeMaterial].logos.map((logo) => (
-                    <div 
-                      key={logo.id} 
-                      className={`logo-item ${logo.id === activeLogoId ? 'active' : ''}`}
-                      onClick={() => setActiveLogoId(logo.id)}
-                    >
-                      <div className="logo-item-header">
-                        <div className="logo-item-title">Logo {logo.id}</div>
-                        <div className="logo-item-actions">
+                  <div 
+                    className="material-color" 
+                    style={{ backgroundColor: material.color }}
+                  ></div>
+                  <span className="material-name">{material.name}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          
+          {/* Properties Panel - slides in when a material is selected */}
+          <div className={`properties-panel ${showProperties ? 'show' : ''}`}>
+            {showProperties && activeMaterial && (
+              <>
+                <div className="properties-header">
+                  <h3>{activeMaterial} Properties</h3>
+                  <button 
+                    className="back-button"
+                    onClick={() => {
+                      setShowProperties(false);
+                      // Keep the active material selected
+                    }}
+                  >
+                    ← Back
+                  </button>
+                </div>
+                
+                {/* Tab Content */}
+                <div className="tab-content">
+                  {/* Color Editor */}
+                  {activeDecorTab === 'color' && currentMaterial && (
+                    <div className="color-editor">
+                      <div className="editor-header">
+                        <h3>Color Settings</h3>
+                        <div className="color-type-selector">
                           <button 
-                            className={`toggle-switch small ${logo.enabled ? 'active' : ''}`}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleToggleLogo(logo.id);
-                            }}
+                            className={`color-type-btn ${materialType === 'solid' ? 'active' : ''}`}
+                            onClick={() => handleMaterialTypeChange('solid')}
                           >
-                            <div className="toggle-slider"></div>
+                            Solid
                           </button>
                           <button 
-                            className="remove-btn"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleRemoveLogo(logo.id);
-                            }}
+                            className={`color-type-btn ${materialType === 'gradient' ? 'active' : ''}`}
+                            onClick={() => handleMaterialTypeChange('gradient')}
                           >
-                            ✕
+                            Gradient
                           </button>
                         </div>
                       </div>
                       
-                      {logo.id === activeLogoId && (
-                        <div className="logo-item-content">
-                          <div className="logo-upload-container">
-                            {logo.image ? (
-                              <div className="logo-preview-container">
-                                <img 
-                                  src={logo.image} 
-                                  alt="Logo" 
-                                  className="logo-preview" 
-                                />
+                      {/* Solid Color Editor */}
+                      {materialType === 'solid' && (
+                        <div className="solid-color-editor">
+                          <div className="color-preview" style={{ backgroundColor: getDisplayColor() }}></div>
+                          
+                          <div className="color-palette-container">
+                            <h4>Color Palette</h4>
+                            <div className="color-palette">
+                              {Object.entries(colorPalette).map(([family, colors]) => (
+                                <div key={family} className="color-family">
+                                  {colors.map((color) => (
+                                    <div
+                                      key={color}
+                                      className="color-swatch"
+                                      style={{ backgroundColor: color }}
+                                      onClick={() => handleQuickColorChange(color)}
+                                    ></div>
+                                  ))}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                          
+                          <div className="custom-color-input">
+                            <h4>Custom Color</h4>
+                            <div className="color-input-row">
+                              <input
+                                type="text"
+                                value={colorInputValue}
+                                onChange={(e) => setColorInputValue(e.target.value)}
+                                placeholder="Enter hex color (#RRGGBB)"
+                                className="color-input-field"
+                              />
+                              <button 
+                                className="apply-color-btn"
+                                onClick={() => handleColorChange({hex: colorInputValue})}
+                              >
+                                Apply
+                              </button>
+                            </div>
+                            
+                            <div className="sketch-picker-wrapper">
+                              <SketchPicker 
+                                color={getDisplayColor()}
+                                onChange={(color) => handleColorChange(color)}
+                                disableAlpha
+                                width="100%"
+                                presetColors={[]}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Gradient Editor */}
+                      {materialType === 'gradient' && (
+                        <div className="gradient-editor">
+                          <div className="gradient-preview" style={getGradientPreviewStyle()}></div>
+                          
+                          <div className="gradient-controls">
+                            <div className="gradient-type-selector">
+                              <label>Gradient Type:</label>
+                              <div className="gradient-type-options">
                                 <button 
-                                  className="change-logo-btn"
-                                  onClick={() => document.getElementById(`logo-upload-${logo.id}`).click()}
+                                  className={`gradient-type-btn ${gradientType === 'linear' ? 'active' : ''}`}
+                                  onClick={() => handleGradientChange('type', 'linear')}
                                 >
-                                  Change
+                                  Linear
+                                </button>
+                                <button 
+                                  className={`gradient-type-btn ${gradientType === 'radial' ? 'active' : ''}`}
+                                  onClick={() => handleGradientChange('type', 'radial')}
+                                >
+                                  Radial
                                 </button>
                               </div>
-                            ) : (
-                              <div 
-                                className="logo-upload"
-                                onClick={() => document.getElementById(`logo-upload-${logo.id}`).click()}
-                              >
-                                <span className="upload-icon">+</span>
-                                <span className="logo-upload-label">Upload Logo</span>
+                            </div>
+                            
+                            {gradientType === 'linear' && (
+                              <div className="gradient-angle-control">
+                                <label htmlFor="angleSlider">Angle: {gradientAngle}°</label>
+                                <input
+                                  id="angleSlider"
+                                  type="range"
+                                  min="0"
+                                  max="360"
+                                  value={gradientAngle}
+                                  onChange={(e) => handleGradientChange('angle', parseInt(e.target.value))}
+                                  className="modern-slider"
+                                />
                               </div>
                             )}
-                            <input 
-                              id={`logo-upload-${logo.id}`}
-                              type="file" 
-                              accept="image/*"
-                              onChange={(e) => handleLogoUpload(e, logo.id)}
-                              className="hidden"
+                            
+                            <div className="gradient-color-controls">
+                              <div className="gradient-color-control">
+                                <label>Color 1:</label>
+                                <div className="color-input-row">
+                                  <div 
+                                    className="gradient-color-preview" 
+                                    style={{ backgroundColor: gradientColor1 }}
+                                  ></div>
+                                  <input
+                                    type="text"
+                                    value={gradientColor1}
+                                    onChange={(e) => handleGradientChange('color1', e.target.value)}
+                                    className="color-input-field"
+                                  />
+                                </div>
+                                <div className="sketch-picker-wrapper">
+                                  <SketchPicker 
+                                    color={gradientColor1}
+                                    onChange={(color) => handleGradientChange('color1', color.hex)}
+                                    disableAlpha
+                                    width="100%"
+                                    presetColors={[]}
+                                  />
+                                </div>
+                              </div>
+                              
+                              <div className="gradient-color-control">
+                                <label>Color 2:</label>
+                                <div className="color-input-row">
+                                  <div 
+                                    className="gradient-color-preview" 
+                                    style={{ backgroundColor: gradientColor2 }}
+                                  ></div>
+                                  <input
+                                    type="text"
+                                    value={gradientColor2}
+                                    onChange={(e) => handleGradientChange('color2', e.target.value)}
+                                    className="color-input-field"
+                                  />
+                                </div>
+                                <div className="sketch-picker-wrapper">
+                                  <SketchPicker 
+                                    color={gradientColor2}
+                                    onChange={(color) => handleGradientChange('color2', color.hex)}
+                                    disableAlpha
+                                    width="100%"
+                                    presetColors={[]}
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  
+                  {/* Logo Editor */}
+                  {activeDecorTab === 'logo' && (
+                    <div className="logo-editor">
+                      <div className="editor-header">
+                        <h3>Logo Settings</h3>
+                      </div>
+                      
+                      {/* Add Logo Button */}
+                      <div className="add-item-container">
+                        <button 
+                          className="add-item-btn"
+                          onClick={handleAddLogo}
+                        >
+                          + Add Logo
+                        </button>
+                      </div>
+                      
+                      {/* Logos List */}
+                      {snap.materialDecorations[activeMaterial]?.logos?.length > 0 ? (
+                        <div className="logos-list">
+                          {snap.materialDecorations[activeMaterial].logos.map((logo) => (
+                            <div 
+                              key={logo.id}
+                              className={`logo-item ${logo.id === activeLogoId ? 'active' : ''}`}
+                              onClick={() => setActiveLogoId(logo.id)}
+                            >
+                              <div className="logo-item-header">
+                                <div className="logo-item-title">Logo {logo.id.slice(0, 4)}</div>
+                                <div className="logo-item-actions">
+                                  <div 
+                                    className={`toggle-switch small ${logo.visible ? 'active' : ''}`}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleToggleLogo(logo.id);
+                                    }}
+                                  >
+                                    <div className="toggle-slider"></div>
+                                  </div>
+                                  <button 
+                                    className="remove-btn"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleRemoveLogo(logo.id);
+                                    }}
+                                  >
+                                    ×
+                                  </button>
+                                </div>
+                              </div>
+                              
+                              {logo.id === activeLogoId && (
+                                <div className="logo-item-content">
+                                  <div className="logo-upload-container">
+                                    {logo.image ? (
+                                      <div className="logo-preview-container">
+                                        <img 
+                                          src={logo.image} 
+                                          alt="Logo Preview" 
+                                          className="logo-preview"
+                                        />
+                                        <label 
+                                          htmlFor={`logo-upload-${logo.id}`}
+                                          className="change-logo-btn"
+                                        >
+                                          Change Logo
+                                        </label>
+                                      </div>
+                                    ) : (
+                                      <label 
+                                        htmlFor={`logo-upload-${logo.id}`}
+                                        className="logo-upload"
+                                      >
+                                        <div className="upload-icon">+</div>
+                                        <span className="logo-upload-label">Upload Logo</span>
+                                      </label>
+                                    )}
+                                    <input
+                                      id={`logo-upload-${logo.id}`}
+                                      type="file"
+                                      accept="image/*"
+                                      onChange={(e) => handleLogoUpload(e, logo.id)}
+                                      className="hidden"
+                                    />
+                                  </div>
+                                  
+                                  <div className="logo-properties">
+                                    <div className="property-group">
+                                      <label>Scale: {logo.scale.toFixed(1)}</label>
+                                      <input
+                                        type="range"
+                                        min="0.1"
+                                        max="2"
+                                        step="0.1"
+                                        value={logo.scale}
+                                        onChange={(e) => handleLogoPropertyChange(logo.id, 'scale', parseFloat(e.target.value))}
+                                        className="modern-slider"
+                                      />
+                                    </div>
+                                    
+                                    <div className="property-group">
+                                      <label>Position X: {logo.position.x.toFixed(1)}</label>
+                                      <input
+                                        type="range"
+                                        min="-1"
+                                        max="1"
+                                        step="0.1"
+                                        value={logo.position.x}
+                                        onChange={(e) => handleLogoPropertyChange(logo.id, 'positionX', parseFloat(e.target.value))}
+                                        className="modern-slider"
+                                      />
+                                    </div>
+                                    
+                                    <div className="property-group">
+                                      <label>Position Y: {logo.position.y.toFixed(1)}</label>
+                                      <input
+                                        type="range"
+                                        min="-1"
+                                        max="1"
+                                        step="0.1"
+                                        value={logo.position.y}
+                                        onChange={(e) => handleLogoPropertyChange(logo.id, 'positionY', parseFloat(e.target.value))}
+                                        className="modern-slider"
+                                      />
+                                    </div>
+                                    
+                                    <div className="property-group">
+                                      <label>Rotation: {logo.rotation}°</label>
+                                      <input
+                                        type="range"
+                                        min="0"
+                                        max="360"
+                                        step="1"
+                                        value={logo.rotation}
+                                        onChange={(e) => handleLogoPropertyChange(logo.id, 'rotation', parseInt(e.target.value))}
+                                        className="modern-slider"
+                                      />
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="empty-state">
+                          <p>No logos added yet. Click the button above to add a logo.</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  
+                  {/* Text Editor */}
+                  {activeDecorTab === 'text' && (
+                    <div className="text-editor">
+                      <div className="editor-header">
+                        <h3>Text Settings</h3>
+                      </div>
+                      
+                      {/* Add Text Button */}
+                      <div className="add-item-container">
+                        <button 
+                          className="add-item-btn"
+                          onClick={handleAddText}
+                        >
+                          + Add Text
+                        </button>
+                      </div>
+                      
+                      {/* Texts List */}
+                      {snap.materialDecorations[activeMaterial]?.texts?.length > 0 ? (
+                        <div className="texts-list">
+                          {snap.materialDecorations[activeMaterial].texts.map((text) => (
+                            <div 
+                              key={text.id}
+                              className={`text-item ${text.id === activeTextId ? 'active' : ''}`}
+                              onClick={() => setActiveTextId(text.id)}
+                            >
+                              <div className="text-item-header">
+                                <div className="text-item-title">
+                                  {text.content ? 
+                                    (text.content.length > 15 ? 
+                                      text.content.substring(0, 15) + '...' : 
+                                      text.content) : 
+                                    `Text ${text.id.slice(0, 4)}`}
+                                </div>
+                                <div className="text-item-actions">
+                                  <div 
+                                    className={`toggle-switch small ${text.visible ? 'active' : ''}`}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleToggleText(text.id);
+                                    }}
+                                  >
+                                    <div className="toggle-slider"></div>
+                                  </div>
+                                  <button 
+                                    className="remove-btn"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleRemoveText(text.id);
+                                    }}
+                                  >
+                                    ×
+                                  </button>
+                                </div>
+                              </div>
+                              
+                              {text.id === activeTextId && (
+                                <div className="text-item-content">
+                                  <div className="text-input-container">
+                                    <label>Text Content</label>
+                                    <input
+                                      type="text"
+                                      value={text.content}
+                                      onChange={(e) => handleTextChange(e, text.id)}
+                                      placeholder="Enter text"
+                                      className="text-input"
+                                    />
+                                  </div>
+                                  
+                                  <div className="text-properties">
+                                    <div className="property-group">
+                                      <label>Font</label>
+                                      <select
+                                        value={text.font}
+                                        onChange={(e) => handleTextPropertyChange(text.id, 'font', e.target.value)}
+                                        className="font-select"
+                                      >
+                                        <option value="Arial">Arial</option>
+                                        <option value="Verdana">Verdana</option>
+                                        <option value="Helvetica">Helvetica</option>
+                                        <option value="Times New Roman">Times New Roman</option>
+                                        <option value="Courier New">Courier New</option>
+                                      </select>
+                                    </div>
+                                    
+                                    <div className="property-group">
+                                      <label>Size: {text.size}</label>
+                                      <input
+                                        type="range"
+                                        min="10"
+                                        max="100"
+                                        step="1"
+                                        value={text.size}
+                                        onChange={(e) => handleTextPropertyChange(text.id, 'size', parseInt(e.target.value))}
+                                        className="modern-slider"
+                                      />
+                                    </div>
+                                    
+                                    <div className="property-group">
+                                      <label>Color</label>
+                                      <div className="text-color-picker">
+                                        <div 
+                                          className="text-color-preview"
+                                          style={{ backgroundColor: text.color }}
+                                        ></div>
+                                        <input
+                                          type="text"
+                                          value={text.color}
+                                          onChange={(e) => handleTextPropertyChange(text.id, 'color', e.target.value)}
+                                          className="color-input-field"
+                                        />
+                                      </div>
+                                    </div>
+                                    
+                                    <div className="property-group">
+                                      <label>Position X: {text.position.x.toFixed(1)}</label>
+                                      <input
+                                        type="range"
+                                        min="-1"
+                                        max="1"
+                                        step="0.1"
+                                        value={text.position.x}
+                                        onChange={(e) => handleTextPropertyChange(text.id, 'positionX', parseFloat(e.target.value))}
+                                        className="modern-slider"
+                                      />
+                                    </div>
+                                    
+                                    <div className="property-group">
+                                      <label>Position Y: {text.position.y.toFixed(1)}</label>
+                                      <input
+                                        type="range"
+                                        min="-1"
+                                        max="1"
+                                        step="0.1"
+                                        value={text.position.y}
+                                        onChange={(e) => handleTextPropertyChange(text.id, 'positionY', parseFloat(e.target.value))}
+                                        className="modern-slider"
+                                      />
+                                    </div>
+                                    
+                                    <div className="property-group">
+                                      <label>Rotation: {text.rotation}°</label>
+                                      <input
+                                        type="range"
+                                        min="0"
+                                        max="360"
+                                        step="1"
+                                        value={text.rotation}
+                                        onChange={(e) => handleTextPropertyChange(text.id, 'rotation', parseInt(e.target.value))}
+                                        className="modern-slider"
+                                      />
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="empty-state">
+                          <p>No text added yet. Click the button above to add text.</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  
+                  {/* Texture Editor */}
+                  {activeDecorTab === 'texture' && (
+                    <div className="texture-editor">
+                      <div className="editor-header">
+                        <h3>Texture Settings</h3>
+                      </div>
+                      
+                      {/* Texture Toggle */}
+                      <div className="toggle-container">
+                        <span className="toggle-label">Enable Texture</span>
+                        <div 
+                          className={`toggle-switch ${snap.materialTextures[activeMaterial]?.enabled ? 'active' : ''}`}
+                          onClick={() => state.toggleMaterialTexture(activeMaterial)}
+                        >
+                          <div className="toggle-slider"></div>
+                        </div>
+                      </div>
+                      
+                      {/* Texture Properties */}
+                      {snap.materialTextures[activeMaterial]?.enabled && (
+                        <div className="texture-properties">
+                          {/* Texture Selection */}
+                          <h4>Select Texture</h4>
+                          <div className="texture-grid">
+                            {snap.availableTextures.map((texture) => (
+                              <div 
+                                key={texture.file}
+                                className={`texture-item ${snap.materialTextures[activeMaterial]?.texture === texture.file ? 'active' : ''}`}
+                                onClick={() => state.updateMaterialTexture(activeMaterial, texture.file)}
+                              >
+                                <div className="texture-image-container">
+                                  <img 
+                                    src={`/pattern/${texture.file}`} 
+                                    alt={texture.name} 
+                                    className="texture-image"
+                                  />
+                                </div>
+                                <div className="texture-name">{texture.name}</div>
+                              </div>
+                            ))}
+                          </div>
+                          
+                          {/* Texture Scale */}
+                          <div className="property-group">
+                            <label>Scale: {snap.materialTextures[activeMaterial]?.scale.toFixed(1)}</label>
+                            <input
+                              type="range"
+                              min="0.1"
+                              max="5"
+                              step="0.1"
+                              value={snap.materialTextures[activeMaterial]?.scale || 1}
+                              onChange={(e) => state.updateTextureScale(activeMaterial, parseFloat(e.target.value))}
+                              className="modern-slider"
                             />
                           </div>
                           
-                          <div className="logo-properties">
-                            <div className="property-group">
-                              <label>Scale: {logo.scale.toFixed(2)}</label>
-                              <input 
-                                type="range" 
-                                min="0.05" 
-                                max="0.5" 
-                                step="0.01"
-                                value={logo.scale}
-                                onChange={(e) => handleLogoPropertyChange(logo.id, 'scale', parseFloat(e.target.value))}
-                                className="modern-slider"
-                              />
-                            </div>
-                            
-                            <div className="property-group">
-                              <label>Position X: {logo.position[0].toFixed(2)}</label>
-                              <input 
-                                type="range" 
-                                min="-0.5" 
-                                max="0.5" 
-                                step="0.01"
-                                value={logo.position[0]}
-                                onChange={(e) => {
-                                  const newPosition = [...logo.position];
-                                  newPosition[0] = parseFloat(e.target.value);
-                                  handleLogoPropertyChange(logo.id, 'position', newPosition);
-                                }}
-                                className="modern-slider"
-                              />
-                            </div>
-                            
-                            <div className="property-group">
-                              <label>Position Y: {logo.position[1].toFixed(2)}</label>
-                              <input 
-                                type="range" 
-                                min="-0.5" 
-                                max="0.5" 
-                                step="0.01"
-                                value={logo.position[1]}
-                                onChange={(e) => {
-                                  const newPosition = [...logo.position];
-                                  newPosition[1] = parseFloat(e.target.value);
-                                  handleLogoPropertyChange(logo.id, 'position', newPosition);
-                                }}
-                                className="modern-slider"
-                              />
-                            </div>
-                            
-                            <div className="property-group">
-                              <label>Rotation: {(logo.rotation[2] * (180/Math.PI)).toFixed(0)}°</label>
-                              <input 
-                                type="range" 
-                                min="0" 
-                                max="6.28" 
-                                step="0.01"
-                                value={logo.rotation[2]}
-                                onChange={(e) => {
-                                  const newRotation = [...logo.rotation];
-                                  newRotation[2] = parseFloat(e.target.value);
-                                  handleLogoPropertyChange(logo.id, 'rotation', newRotation);
-                                }}
-                                className="modern-slider"
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="empty-state">
-                  <p>No logos added yet. Click "Add Logo" to get started.</p>
-                </div>
-              )}
-            </div>
-          )}
-          
-          {/* Text Editor */}
-          {activeDecorTab === 'text' && currentMaterial && (
-            <div className="text-editor">
-              <div className="editor-header">
-                <h3>Text Settings</h3>
-                <button 
-                  className="add-item-btn"
-                  onClick={handleAddText}
-                >
-                  Add Text
-                </button>
-              </div>
-              
-              {snap.materialDecorations[activeMaterial]?.texts?.length > 0 ? (
-                <div className="texts-list">
-                  {snap.materialDecorations[activeMaterial].texts.map((text) => (
-                    <div 
-                      key={text.id} 
-                      className={`text-item ${text.id === activeTextId ? 'active' : ''}`}
-                      onClick={() => setActiveTextId(text.id)}
-                    >
-                      <div className="text-item-header">
-                        <div className="text-item-title">
-                          {text.content ? `"${text.content}"` : `Text ${text.id}`}
-                        </div>
-                        <div className="text-item-actions">
-                          <button 
-                            className={`toggle-switch small ${text.enabled ? 'active' : ''}`}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleToggleText(text.id);
-                            }}
-                          >
-                            <div className="toggle-slider"></div>
-                          </button>
-                          <button 
-                            className="remove-btn"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleRemoveText(text.id);
-                            }}
-                          >
-                            ✕
-                          </button>
-                        </div>
-                      </div>
-                      
-                      {text.id === activeTextId && (
-                        <div className="text-item-content">
-                          <div className="text-input-container">
-                            <div className="property-group">
-                              <label>Text Content</label>
-                              <input 
-                                type="text"
-                                value={text.content || ''}
-                                onChange={(e) => handleTextChange(e, text.id)}
-                                placeholder="Enter text"
-                                className="text-input"
-                              />
-                            </div>
-                            
-                            <div className="property-group">
-                              <label>Font</label>
-                              <select 
-                                className="font-select"
-                                value={text.font}
-                                onChange={(e) => handleTextPropertyChange(text.id, 'font', e.target.value)}
-                              >
-                                <option value="Arial">Arial</option>
-                                <option value="Verdana">Verdana</option>
-                                <option value="Helvetica">Helvetica</option>
-                                <option value="Times New Roman">Times New Roman</option>
-                                <option value="Courier New">Courier New</option>
-                                <option value="Georgia">Georgia</option>
-                              </select>
-                            </div>
-                            
-                            <div className="property-group">
-                              <label>Size: {text.size}</label>
-                              <input 
-                                type="range" 
-                                min="10" 
-                                max="100" 
-                                step="1"
-                                value={text.size}
-                                onChange={(e) => handleTextPropertyChange(text.id, 'size', parseInt(e.target.value))}
-                                className="modern-slider"
-                              />
-                            </div>
-                            
-                            <div className="property-group">
-                              <label>Color</label>
-                              <div className="text-color-picker">
-                                <div 
-                                  className="text-color-preview" 
-                                  style={{ backgroundColor: text.color }}
-                                ></div>
-                                <SketchPicker 
-                                  color={text.color}
-                                  onChange={(color) => handleTextPropertyChange(text.id, 'color', color.hex)}
-                                  disableAlpha
-                                  width="100%"
-                                  presetColors={[]}
-                                />
-                              </div>
-                            </div>
-                            
-                            <div className="property-group">
-                              <label>Position X: {text.position[0].toFixed(2)}</label>
-                              <input 
-                                type="range" 
-                                min="-0.5" 
-                                max="0.5" 
-                                step="0.01"
-                                value={text.position[0]}
-                                onChange={(e) => {
-                                  const newPosition = [...text.position];
-                                  newPosition[0] = parseFloat(e.target.value);
-                                  handleTextPropertyChange(text.id, 'position', newPosition);
-                                }}
-                                className="modern-slider"
-                              />
-                            </div>
-                            
-                            <div className="property-group">
-                              <label>Position Y: {text.position[1].toFixed(2)}</label>
-                              <input 
-                                type="range" 
-                                min="-0.5" 
-                                max="0.5" 
-                                step="0.01"
-                                value={text.position[1]}
-                                onChange={(e) => {
-                                  const newPosition = [...text.position];
-                                  newPosition[1] = parseFloat(e.target.value);
-                                  handleTextPropertyChange(text.id, 'position', newPosition);
-                                }}
-                                className="modern-slider"
-                              />
-                            </div>
-                            
-                            <div className="property-group">
-                              <label>Rotation: {(text.rotation[2] * (180/Math.PI)).toFixed(0)}°</label>
-                              <input 
-                                type="range" 
-                                min="0" 
-                                max="6.28" 
-                                step="0.01"
-                                value={text.rotation[2]}
-                                onChange={(e) => {
-                                  const newRotation = [...text.rotation];
-                                  newRotation[2] = parseFloat(e.target.value);
-                                  handleTextPropertyChange(text.id, 'rotation', newRotation);
-                                }}
-                                className="modern-slider"
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="empty-state">
-                  <p>No text added yet. Click "Add Text" to get started.</p>
-                </div>
-              )}
-            </div>
-          )}
-          
-          {/* Texture Editor */}
-          {activeDecorTab === 'texture' && currentMaterial && (
-            <div className="texture-editor">
-              <div className="editor-header">
-                <h3>Texture Settings</h3>
-                <div className="toggle-container">
-                  <label className="toggle-label">Enable Texture</label>
-                  <div 
-                    className={`toggle-switch ${snap.materialTextures[activeMaterial]?.enabled ? 'active' : ''}`}
-                    onClick={() => {
-                      console.log(`Toggling texture for ${activeMaterial}`);
-                      state.toggleMaterialTexture(activeMaterial);
-                    }}
-                  >
-                    <div className="toggle-slider"></div>
-                  </div>
-                </div>
-              </div>
-              
-              {snap.materialTextures[activeMaterial]?.enabled && (
-                <div className="texture-properties">
-                  {/* Texture Selection */}
-                  <div className="property-group">
-                    <label>Select Texture</label>
-                    <div className="texture-grid">
-                      {snap.availableTextures.map((texture) => (
-                        <div 
-                          key={texture.file}
-                          className={`texture-item ${snap.materialTextures[activeMaterial]?.texture === texture.file ? 'active' : ''}`}
-                          onClick={() => {
-                            console.log(`Changing texture for ${activeMaterial} to ${texture.file}`);
-                            state.updateMaterialTexture(activeMaterial, texture.file);
-                          }}
-                        >
-                          <div className="texture-image-container">
-                            <img 
-                              src={`/pattern/${texture.file}`} 
-                              alt={texture.name}
-                              className="texture-image"
+                          {/* Texture Opacity */}
+                          <div className="property-group">
+                            <label>Opacity: {(snap.materialTextures[activeMaterial]?.opacity * 100).toFixed(0)}%</label>
+                            <input
+                              type="range"
+                              min="0"
+                              max="1"
+                              step="0.01"
+                              value={snap.materialTextures[activeMaterial]?.opacity || 0.8}
+                              onChange={(e) => state.updateTextureOpacity(activeMaterial, parseFloat(e.target.value))}
+                              className="modern-slider"
                             />
                           </div>
-                          <div className="texture-name">{texture.name}</div>
+                          
+                          {/* Texture Color Tint */}
+                          <div className="property-group">
+                            <label>Color Tint</label>
+                            <div className="texture-color-control">
+                              <div 
+                                className="texture-color-preview"
+                                style={{ backgroundColor: snap.materialTextures[activeMaterial]?.color || '#ffffff' }}
+                              ></div>
+                              <input
+                                type="text"
+                                value={snap.materialTextures[activeMaterial]?.color || '#ffffff'}
+                                onChange={(e) => state.updateTextureColor(activeMaterial, e.target.value)}
+                                className="color-input-field"
+                              />
+                            </div>
+                          </div>
                         </div>
-                      ))}
+                      )}
                     </div>
-                  </div>
-                  
-                  {/* Texture Color */}
-                  <div className="property-group">
-                    <label>Texture Color</label>
-                    <div className="texture-color-control">
-                      <div 
-                        className="texture-color-preview" 
-                        style={{ backgroundColor: snap.materialTextures[activeMaterial]?.color || '#ffffff' }}
-                      ></div>
-                      <div className="sketch-picker-wrapper">
-                        <SketchPicker 
-                          color={snap.materialTextures[activeMaterial]?.color || '#ffffff'}
-                          onChange={(color) => {
-                            console.log(`Changing texture color for ${activeMaterial} to ${color.hex}`);
-                            state.updateTextureColor(activeMaterial, color.hex);
-                          }}
-                          disableAlpha
-                          width="100%"
-                          presetColors={[
-                            '#FFFFFF', '#F8F8F8', '#F0F0F0', '#E0E0E0',
-                            '#C0C0C0', '#A0A0A0', '#808080', '#606060',
-                            '#404040', '#202020', '#000000', '#FF0000',
-                            '#00FF00', '#0000FF', '#FFFF00', '#00FFFF',
-                            '#FF00FF', '#FFA500', '#800080', '#008000'
-                          ]}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="property-group">
-                    <label>Opacity: {(snap.materialTextures[activeMaterial]?.opacity || 0.8).toFixed(2)}</label>
-                    <input 
-                      type="range" 
-                      min="0.1" 
-                      max="1" 
-                      step="0.05"
-                      value={snap.materialTextures[activeMaterial]?.opacity || 0.8}
-                      onChange={(e) => {
-                        const value = parseFloat(e.target.value);
-                        console.log(`Changing opacity for ${activeMaterial} to ${value}`);
-                        state.updateTextureOpacity(activeMaterial, value);
-                      }}
-                      className="modern-slider"
-                    />
-                  </div>
-                  
-                  <div className="property-group">
-                    <label>Scale: {(snap.materialTextures[activeMaterial]?.scale || 1.0).toFixed(1)}</label>
-                    <input 
-                      type="range" 
-                      min="0.5" 
-                      max="10" 
-                      step="0.5"
-                      value={snap.materialTextures[activeMaterial]?.scale || 1.0}
-                      onChange={(e) => {
-                        const value = parseFloat(e.target.value);
-                        console.log(`Changing scale for ${activeMaterial} to ${value}`);
-                        state.updateTextureScale(activeMaterial, value);
-                      }}
-                      className="modern-slider"
-                    />
-                  </div>
+                  )}
                 </div>
-              )}
-            </div>
-          )}
+              </>
+            )}
+          </div>
         </div>
       </div>
     </div>
