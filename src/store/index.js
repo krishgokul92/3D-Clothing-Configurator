@@ -16,46 +16,26 @@ const state = proxy({
   },
   activeMaterial: null, // Currently selected material for editing
   
-  // Pattern overlay control
-  isPatternVisible: true, // Toggle for pattern visibility
-  patternOpacity: 0.5,    // Opacity level for the pattern
-  patternColor: '#ffffff', // Color tint for the pattern
-  patternScale: 4,        // Scale factor for the pattern (higher = smaller pattern)
-  selectedPattern: 'pattern2.png', // Currently selected pattern file
+  // Texture settings for materials
+  materialTextures: {
+    // Structure: {materialName: {enabled: boolean, texture: string, scale: number, opacity: number}}
+  },
   
-  // Available patterns
-  availablePatterns: [
+  // Available textures
+  availableTextures: [
     { name: 'Pattern 1', file: 'pattern1.png' },
     { name: 'Pattern 2', file: 'pattern2.png' },
     { name: 'Pattern 3', file: 'pattern3.png' },
+    { name: 'Pattern 4', file: 'pattern4.png' },
+    { name: 'Pattern 5', file: 'pattern5.png' },
+    { name: 'Pattern 6', file: 'pattern6.png' },
+    { name: 'Pattern 7', file: 'pattern7.png' },
   ],
   
   // Material-specific decorations
   materialDecorations: {
     // Will be populated with material-specific decorations
     // Structure: {materialName: {logos: [], texts: []}}
-  },
-  
-  // Function to toggle pattern visibility
-  togglePattern: () => {
-    state.isPatternVisible = !state.isPatternVisible;
-  },
-  
-  // Function to update pattern opacity
-  updatePatternOpacity: (opacity) => {
-    state.patternOpacity = opacity;
-  },
-  
-  // Function to update pattern color
-  updatePatternColor: (color) => {
-    console.log("Store: Updating pattern color to:", color);
-    state.patternColor = color;
-    console.log("Store: Pattern color is now:", state.patternColor);
-  },
-  
-  // Function to update pattern scale
-  updatePatternScale: (scale) => {
-    state.patternScale = scale;
   },
   
   // Function to update a material color
@@ -90,6 +70,94 @@ const state = proxy({
     }
   },
   
+  // Function to initialize material texture settings
+  initMaterialTexture: (materialName) => {
+    if (!state.materialTextures) {
+      state.materialTextures = {};
+    }
+    
+    if (!state.materialTextures[materialName]) {
+      state.materialTextures[materialName] = {
+        enabled: false,
+        texture: 'pattern1.png',
+        scale: 1.0,
+        opacity: 0.8
+      };
+      console.log(`Initialized texture settings for: ${materialName}`);
+    }
+  },
+  
+  // Function to toggle texture visibility for a material
+  toggleMaterialTexture: (materialName) => {
+    if (!state.materialTextures) {
+      state.materialTextures = {};
+    }
+    
+    if (!state.materialTextures[materialName]) {
+      state.initMaterialTexture(materialName);
+    }
+    
+    state.materialTextures[materialName].enabled = !state.materialTextures[materialName].enabled;
+    console.log(`Toggled texture for ${materialName} to ${state.materialTextures[materialName].enabled}`);
+  },
+  
+  // Function to update texture for a material
+  updateMaterialTexture: (materialName, textureFile) => {
+    if (!state.materialTextures) {
+      state.materialTextures = {};
+    }
+    
+    if (!state.materialTextures[materialName]) {
+      state.initMaterialTexture(materialName);
+    }
+    
+    // If texture is not already enabled, enable it
+    if (!state.materialTextures[materialName].enabled) {
+      state.materialTextures[materialName].enabled = true;
+    }
+    
+    state.materialTextures[materialName].texture = textureFile;
+    console.log(`Updated texture for ${materialName} to ${textureFile}`);
+  },
+  
+  // Function to update texture scale for a material
+  updateTextureScale: (materialName, scale) => {
+    if (!state.materialTextures) {
+      state.materialTextures = {};
+    }
+    
+    if (!state.materialTextures[materialName]) {
+      state.initMaterialTexture(materialName);
+    }
+    
+    // If texture is not already enabled, enable it
+    if (!state.materialTextures[materialName].enabled) {
+      state.materialTextures[materialName].enabled = true;
+    }
+    
+    state.materialTextures[materialName].scale = scale;
+    console.log(`Updated texture scale for ${materialName} to ${scale}`);
+  },
+  
+  // Function to update texture opacity for a material
+  updateTextureOpacity: (materialName, opacity) => {
+    if (!state.materialTextures) {
+      state.materialTextures = {};
+    }
+    
+    if (!state.materialTextures[materialName]) {
+      state.initMaterialTexture(materialName);
+    }
+    
+    // If texture is not already enabled, enable it
+    if (!state.materialTextures[materialName].enabled) {
+      state.materialTextures[materialName].enabled = true;
+    }
+    
+    state.materialTextures[materialName].opacity = opacity;
+    console.log(`Updated texture opacity for ${materialName} to ${opacity}`);
+  },
+  
   // Function to set material type (solid or gradient)
   setMaterialType: (materialName, type) => {
     if (!state.materialTypes) {
@@ -100,17 +168,30 @@ const state = proxy({
       state.initMaterialType(materialName);
     }
     
+    // Skip if already the same type
+    if (state.materialTypes[materialName].type === type) {
+      console.log(`Material ${materialName} is already type ${type}`);
+      return;
+    }
+    
+    console.log(`Changing material ${materialName} from ${state.materialTypes[materialName].type} to ${type}`);
+    
     // When switching to solid, update the material color to the stored solid color
     if (type === 'solid' && state.materialTypes[materialName].type === 'gradient') {
-      state.updateMaterialColor(materialName, state.materialTypes[materialName].solidColor);
+      const solidColor = state.materialTypes[materialName].solidColor;
+      console.log(`Switching to solid color: ${solidColor}`);
+      state.updateMaterialColor(materialName, solidColor);
     }
     
     // When switching to gradient, store the current solid color but don't change gradient colors
     if (type === 'gradient' && state.materialTypes[materialName].type === 'solid') {
-      state.materialTypes[materialName].solidColor = state.materials[materialName];
+      const currentColor = state.materials[materialName];
+      console.log(`Switching to gradient, storing solid color: ${currentColor}`);
+      state.materialTypes[materialName].solidColor = currentColor;
       // Don't update gradient colors here - keep them as they were
     }
     
+    // Update the material type
     state.materialTypes[materialName].type = type;
     console.log(`Set material ${materialName} type to ${type}`);
   },
@@ -320,12 +401,6 @@ const state = proxy({
   logoRotation: 0,
   logoPositionX: 0,
   logoPositionY: 0,
-  
-  // Function to update selected pattern
-  updateSelectedPattern: (patternFile) => {
-    console.log("Store: Updating selected pattern to:", patternFile);
-    state.selectedPattern = patternFile;
-  },
 });
 
 export default state;

@@ -7,7 +7,7 @@ const MaterialColorPicker = () => {
   const snap = useSnapshot(state);
   const [materialsList, setMaterialsList] = useState([]);
   const [activeMaterial, setActiveMaterial] = useState(null);
-  const [activeDecorTab, setActiveDecorTab] = useState('color'); // 'color', 'logo', 'text', 'pattern'
+  const [activeDecorTab, setActiveDecorTab] = useState('color'); // 'color', 'logo', 'text', 'texture'
   const [activeLogoId, setActiveLogoId] = useState(null);
   const [activeTextId, setActiveTextId] = useState(null);
   const [logoFile, setLogoFile] = useState(null);
@@ -257,18 +257,32 @@ const MaterialColorPicker = () => {
   // Handle material type change (solid or gradient)
   const handleMaterialTypeChange = (type) => {
     if (activeMaterial) {
-      // If switching to gradient, make sure we don't copy the solid color to gradient color1
+      console.log(`Changing material type for ${activeMaterial} to ${type}`);
+      
+      // Save current state before switching
+      if (type === 'gradient' && snap.materialTypes[activeMaterial]?.type === 'solid') {
+        // When switching to gradient, make sure we save the current solid color
+        const currentColor = snap.materials[activeMaterial];
+        console.log(`Saving current solid color before switching to gradient: ${currentColor}`);
+      }
+      
+      // Apply the material type change
       state.setMaterialType(activeMaterial, type);
       
       // Force update the UI state based on the new type
-      if (type === 'solid' && snap.materialTypes[activeMaterial]) {
-        setColorInputValue(snap.materialTypes[activeMaterial].solidColor || snap.materials[activeMaterial]);
-      } else if (type === 'gradient' && snap.materialTypes[activeMaterial] && snap.materialTypes[activeMaterial].gradient) {
-        // Update gradient values from state
-        setGradientColor1(snap.materialTypes[activeMaterial].gradient.color1);
-        setGradientColor2(snap.materialTypes[activeMaterial].gradient.color2);
-        setGradientAngle(snap.materialTypes[activeMaterial].gradient.angle);
-        setGradientType(snap.materialTypes[activeMaterial].gradient.type);
+      if (type === 'solid') {
+        // When switching to solid, use the stored solid color
+        const solidColor = snap.materialTypes[activeMaterial]?.solidColor || snap.materials[activeMaterial];
+        console.log(`Setting UI to solid color: ${solidColor}`);
+        setColorInputValue(solidColor);
+      } else if (type === 'gradient' && snap.materialTypes[activeMaterial]?.gradient) {
+        // When switching to gradient, update UI with gradient values
+        const gradient = snap.materialTypes[activeMaterial].gradient;
+        console.log(`Setting UI to gradient: ${gradient.color1}, ${gradient.color2}`);
+        setGradientColor1(gradient.color1);
+        setGradientColor2(gradient.color2);
+        setGradientAngle(gradient.angle);
+        setGradientType(gradient.type);
       }
     }
   };
@@ -378,32 +392,32 @@ const MaterialColorPicker = () => {
         ))}
       </div>
       
-      {/* Material Editor Tabs */}
+      {/* Decoration Tabs */}
       <div className="decor-tabs">
-        <button 
+        <div 
           className={`decor-tab ${activeDecorTab === 'color' ? 'active' : ''}`}
           onClick={() => setActiveDecorTab('color')}
         >
           Color
-        </button>
-        <button 
+        </div>
+        <div 
           className={`decor-tab ${activeDecorTab === 'logo' ? 'active' : ''}`}
           onClick={() => setActiveDecorTab('logo')}
         >
-          Logos
-        </button>
-        <button 
+          Logo
+        </div>
+        <div 
           className={`decor-tab ${activeDecorTab === 'text' ? 'active' : ''}`}
           onClick={() => setActiveDecorTab('text')}
         >
-          Texts
-        </button>
-        <button 
-          className={`decor-tab ${activeDecorTab === 'pattern' ? 'active' : ''}`}
-          onClick={() => setActiveDecorTab('pattern')}
+          Text
+        </div>
+        <div 
+          className={`decor-tab ${activeDecorTab === 'texture' ? 'active' : ''}`}
+          onClick={() => setActiveDecorTab('texture')}
         >
-          Pattern
-        </button>
+          Texture
+        </div>
       </div>
       
       {/* Color Editor for Active Material */}
@@ -968,96 +982,85 @@ const MaterialColorPicker = () => {
           )}
         </div>
       )}
-      
-      {/* Pattern Editor */}
-      {currentMaterial && activeDecorTab === 'pattern' && (
-        <div className="material-pattern-editor">
+
+      {/* Texture Editor */}
+      {currentMaterial && activeDecorTab === 'texture' && (
+        <div className="material-texture-editor">
           <div className="toggle-container">
-            <label className="toggle-label">Enable Pattern Overlay</label>
+            <label className="toggle-label">Enable Texture Overlay</label>
             <div 
-              className={`toggle-switch ${snap.isPatternVisible ? 'active' : ''}`}
-              onClick={() => state.togglePattern()}
+              className={`toggle-switch ${snap.materialTextures[activeMaterial]?.enabled ? 'active' : ''}`}
+              onClick={() => {
+                console.log(`Toggling texture for ${activeMaterial}`);
+                state.toggleMaterialTexture(activeMaterial);
+              }}
             >
               <div className="toggle-slider"></div>
             </div>
           </div>
           
-          {snap.isPatternVisible && (
-            <div className="pattern-properties">
-              <h3 className="subsection-title">Pattern Properties</h3>
+          {snap.materialTextures[activeMaterial]?.enabled && (
+            <div className="texture-properties">
+              <h3 className="subsection-title">Texture Properties</h3>
               
-              {/* Pattern Selection */}
+              {/* Texture Selection */}
               <div className="property-group">
-                <label>Select Pattern</label>
-                <div className="pattern-grid">
-                  {snap.availablePatterns.map((pattern) => (
+                <label>Select Texture</label>
+                <div className="texture-grid">
+                  {snap.availableTextures.map((texture) => (
                     <div 
-                      key={pattern.file}
-                      className={`pattern-item ${snap.selectedPattern === pattern.file ? 'active' : ''}`}
-                      onClick={() => state.updateSelectedPattern(pattern.file)}
+                      key={texture.file}
+                      className={`texture-item ${snap.materialTextures[activeMaterial]?.texture === texture.file ? 'active' : ''}`}
+                      onClick={() => {
+                        console.log(`Changing texture for ${activeMaterial} to ${texture.file}`);
+                        state.updateMaterialTexture(activeMaterial, texture.file);
+                      }}
                     >
-                      <div className="pattern-image-container">
+                      <div className="texture-image-container">
                         <img 
-                          src={`/pattern/${pattern.file}`} 
-                          alt={pattern.name}
-                          className="pattern-image"
+                          src={`/pattern/${texture.file}`} 
+                          alt={texture.name}
+                          className="texture-image"
                         />
                       </div>
-                      <div className="pattern-name">{pattern.name}</div>
+                      <div className="texture-name">{texture.name}</div>
                     </div>
                   ))}
                 </div>
               </div>
               
               <div className="property-group">
-                <label>Opacity</label>
+                <label>Opacity: {(snap.materialTextures[activeMaterial]?.opacity || 0.8).toFixed(2)}</label>
                 <input 
                   type="range" 
                   min="0.1" 
                   max="1" 
                   step="0.05"
-                  value={snap.patternOpacity}
-                  onChange={(e) => state.updatePatternOpacity(parseFloat(e.target.value))}
+                  value={snap.materialTextures[activeMaterial]?.opacity || 0.8}
+                  onChange={(e) => {
+                    const value = parseFloat(e.target.value);
+                    console.log(`Changing opacity for ${activeMaterial} to ${value}`);
+                    state.updateTextureOpacity(activeMaterial, value);
+                  }}
                   className="modern-slider"
                 />
-                <div className="slider-value">{snap.patternOpacity.toFixed(2)}</div>
               </div>
               
               <div className="property-group">
-                <label>Scale</label>
+                <label>Scale: {(snap.materialTextures[activeMaterial]?.scale || 1.0).toFixed(1)}</label>
                 <input 
                   type="range" 
-                  min="1" 
+                  min="0.5" 
                   max="10" 
                   step="0.5"
-                  value={snap.patternScale}
-                  onChange={(e) => state.updatePatternScale(parseFloat(e.target.value))}
+                  value={snap.materialTextures[activeMaterial]?.scale || 1.0}
+                  onChange={(e) => {
+                    const value = parseFloat(e.target.value);
+                    console.log(`Changing scale for ${activeMaterial} to ${value}`);
+                    state.updateTextureScale(activeMaterial, value);
+                  }}
                   className="modern-slider"
                 />
-                <div className="slider-value">{snap.patternScale.toFixed(1)}</div>
-              </div>
-              
-              <div className="property-group">
-                <label>Color Tint</label>
-                <div className="pattern-color-preview" style={{ backgroundColor: snap.patternColor }}></div>
-                <div className="pattern-color-picker">
-                  <SketchPicker 
-                    color={snap.patternColor}
-                    onChange={(color) => {
-                      console.log("Pattern color changed to:", color.hex);
-                      state.updatePatternColor(color.hex);
-                    }}
-                    disableAlpha
-                    width="100%"
-                    presetColors={[
-                      '#FFFFFF', '#F8F8F8', '#F0F0F0', '#E0E0E0',
-                      '#C0C0C0', '#A0A0A0', '#808080', '#606060',
-                      '#404040', '#202020', '#000000', '#FF0000',
-                      '#00FF00', '#0000FF', '#FFFF00', '#00FFFF',
-                      '#FF00FF', '#FFA500', '#800080', '#008000'
-                    ]}
-                  />
-                </div>
               </div>
             </div>
           )}
