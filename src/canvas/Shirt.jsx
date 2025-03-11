@@ -225,10 +225,25 @@ const Shirt = () => {
       side: THREE.DoubleSide
     });
     
+    // Apply color tint to the texture material
+    if (textureSettings.color && textureSettings.color !== '#ffffff') {
+      textureMaterial.color = new THREE.Color(textureSettings.color);
+    } else {
+      textureMaterial.color = new THREE.Color('#ffffff'); // Reset to white if no color specified
+    }
+    
     // Store the texture material
     if (!node.userData) node.userData = {};
     node.userData.textureMaterial = textureMaterial;
     node.userData.hasTextureOverlay = true;
+    
+    // Log the texture material properties for debugging
+    console.log(`Applied texture material to ${materialName}:`, {
+      texture: textureSettings.texture,
+      opacity: textureSettings.opacity,
+      scale: textureSettings.scale,
+      color: textureSettings.color
+    });
   };
   
   // Load material-specific logos when they change

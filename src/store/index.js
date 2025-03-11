@@ -81,7 +81,8 @@ const state = proxy({
         enabled: false,
         texture: 'pattern1.png',
         scale: 1.0,
-        opacity: 0.8
+        opacity: 0.8,
+        color: '#ffffff' // Default white color (no tint)
       };
       console.log(`Initialized texture settings for: ${materialName}`);
     }
@@ -156,6 +157,25 @@ const state = proxy({
     
     state.materialTextures[materialName].opacity = opacity;
     console.log(`Updated texture opacity for ${materialName} to ${opacity}`);
+  },
+  
+  // Function to update texture color for a material
+  updateTextureColor: (materialName, color) => {
+    if (!state.materialTextures) {
+      state.materialTextures = {};
+    }
+    
+    if (!state.materialTextures[materialName]) {
+      state.initMaterialTexture(materialName);
+    }
+    
+    // If texture is not already enabled, enable it
+    if (!state.materialTextures[materialName].enabled) {
+      state.materialTextures[materialName].enabled = true;
+    }
+    
+    state.materialTextures[materialName].color = color;
+    console.log(`Updated texture color for ${materialName} to ${color}`);
   },
   
   // Function to set material type (solid or gradient)
