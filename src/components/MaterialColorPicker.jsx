@@ -17,6 +17,8 @@ const MaterialColorPicker = () => {
   const [gradientAngle, setGradientAngle] = useState(45);
   const [gradientType, setGradientType] = useState('linear');
   const [showProperties, setShowProperties] = useState(false);
+  const [showTextureColorPicker, setShowTextureColorPicker] = useState(false);
+  const [textureColorInput, setTextureColorInput] = useState('');
   
   // Predefined color palette - organized by color families
   const colorPalette = {
@@ -106,6 +108,23 @@ const MaterialColorPicker = () => {
     }
   }, [activeMaterial, snap.materials, snap.materialTypes]);
 
+  // Update textureColorInput when active material changes
+  useEffect(() => {
+    if (activeMaterial && snap.materialTextures && snap.materialTextures[activeMaterial]) {
+      setTextureColorInput(snap.materialTextures[activeMaterial].color || '#ffffff');
+    }
+  }, [activeMaterial, snap.materialTextures]);
+
+  // Ensure texture rotation is properly initialized
+  useEffect(() => {
+    if (activeMaterial && snap.materialTextures && snap.materialTextures[activeMaterial]) {
+      // Make sure rotation is initialized
+      if (snap.materialTextures[activeMaterial].rotation === undefined) {
+        state.updateTextureRotation(activeMaterial, 0);
+      }
+    }
+  }, [activeMaterial, snap.materialTextures]);
+
   const handleMaterialChange = (materialName) => {
     setActiveMaterial(materialName);
     state.activeMaterial = materialName;
@@ -116,6 +135,11 @@ const MaterialColorPicker = () => {
     // Ensure material decorations are initialized for the selected material
     if (!snap.materialDecorations[materialName]) {
       state.initMaterialDecorations(materialName);
+    }
+    
+    // Ensure material texture settings are initialized
+    if (!snap.materialTextures || !snap.materialTextures[materialName]) {
+      state.initMaterialTexture(materialName);
     }
   };
 
@@ -363,6 +387,23 @@ const MaterialColorPicker = () => {
 
   // Get material type
   const materialType = getCurrentMaterialType();
+
+  // Function to handle texture color change from input field
+  const handleTextureColorInputChange = (e) => {
+    setTextureColorInput(e.target.value);
+  };
+
+  // Function to handle texture color change from color picker
+  const handleTextureColorPickerChange = (color) => {
+    setTextureColorInput(color.hex);
+  };
+
+  // Function to apply the texture color
+  const applyTextureColor = () => {
+    if (activeMaterial && textureColorInput) {
+      state.updateTextureColor(activeMaterial, textureColorInput);
+    }
+  };
 
   // If no materials are loaded yet, show a loading message
   if (materialsList.length === 0) {
@@ -934,6 +975,7 @@ const MaterialColorPicker = () => {
                                       />
                                     </div>
                                     
+                                    
                                     <div className="property-group">
                                       <label>Rotation: {text.rotation}°</label>
                                       <input
@@ -1030,21 +1072,85 @@ const MaterialColorPicker = () => {
                             />
                           </div>
                           
+                          {/* Texture Rotation */}
+                          <div className="property-group">
+                            <label>Rotation: {snap.materialTextures[activeMaterial]?.rotation || 0}°</label>
+                            <input
+                              type="range"
+                              min="0"
+                              max="360"
+                              step="1"
+                              value={snap.materialTextures[activeMaterial]?.rotation || 0}
+                              onChange={(e) => state.updateTextureRotation(activeMaterial, parseInt(e.target.value))}
+                              className="modern-slider"
+                            />
+                          </div>
+                          
                           {/* Texture Color Tint */}
                           <div className="property-group">
-                            <label>Color Tint</label>
+                            <label>
+                              Color Tint
+                              {textureColorInput && textureColorInput.toLowerCase() !== '#ffffff' && (
+                                <span className="color-active-indicator">• Active</span>
+                              )}
+                            </label>
                             <div className="texture-color-control">
                               <div 
                                 className="texture-color-preview"
-                                style={{ backgroundColor: snap.materialTextures[activeMaterial]?.color || '#ffffff' }}
+                                style={{ backgroundColor: textureColorInput || '#ffffff' }}
+                                onClick={() => setShowTextureColorPicker(!showTextureColorPicker)}
                               ></div>
                               <input
                                 type="text"
-                                value={snap.materialTextures[activeMaterial]?.color || '#ffffff'}
-                                onChange={(e) => state.updateTextureColor(activeMaterial, e.target.value)}
+                                value={textureColorInput}
+                                onChange={(e) => handleTextureColorInputChange(e)}
                                 className="color-input-field"
                               />
+                              <button 
+                                className="apply-color-btn"
+                                onClick={applyTextureColor}
+                              >
+                                Apply
+                              </button>
                             </div>
+                            
+                            {showTextureColorPicker && (
+                              <div className="sketch-picker-wrapper">
+                                <SketchPicker 
+                                  color={textureColorInput}
+                                  onChange={(color) => handleTextureColorPickerChange(color)}
+                                  disableAlpha
+                                  width="100%"
+                                  presetColors={[
+                                    '#FFFFFF', '#F8F8F8', '#F0F0F0', '#E0E0E0',
+                                    '#C0C0C0', '#A0A0A0', '#808080', '#606060',
+                                    '#404040', '#202020', '#000000', '#FF0000',
+                                    '#00FF00', '#0000FF', '#FFFF00', '#00FFFF',
+                                    '#FF00FF', '#FFA500', '#800080', '#008000'
+                                  ]}
+                                />
+                                <div className="color-picker-actions">
+                                  <button 
+                                    className="color-picker-apply-btn"
+                                    onClick={() => {
+                                      applyTextureColor();
+                                      setShowTextureColorPicker(false);
+                                    }}
+                                  >
+                                    Apply Color
+                                  </button>
+                                  <button 
+                                    className="color-picker-reset-btn"
+                                    onClick={() => {
+                                      setTextureColorInput('#ffffff');
+                                      setShowTextureColorPicker(false);
+                                    }}
+                                  >
+                                    Reset to Default
+                                  </button>
+                                </div>
+                              </div>
+                            )}
                           </div>
                         </div>
                       )}

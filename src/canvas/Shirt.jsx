@@ -104,44 +104,82 @@ const Shirt = () => {
   // Load and configure a pattern texture
   const loadPatternTexture = (materialName, textureSettings) => {
     try {
+      // Validate inputs
+      if (!materialName || !textureSettings || !textureSettings.texture) {
+        console.error("Invalid parameters for loadPatternTexture:", { materialName, textureSettings });
+        return Promise.reject(new Error("Invalid parameters for loadPatternTexture"));
+      }
+      
       // Initialize the texture storage if it doesn't exist
+      if (!textureTexturesRef.current) {
+        textureTexturesRef.current = {};
+      }
+      
+      // Initialize the material-specific texture storage
       if (!textureTexturesRef.current[materialName]) {
-        textureTexturesRef.current[materialName] = {};
+        textureTexturesRef.current[materialName] = null;
       }
       
       const textureLoader = new THREE.TextureLoader();
+      const texturePath = `/pattern/${textureSettings.texture}`;
+      
+      console.log(`Loading texture for ${materialName} from path: ${texturePath}`);
+      
       return new Promise((resolve, reject) => {
         textureLoader.load(
-          `/pattern/${textureSettings.texture}`,
+          texturePath,
           (texture) => {
-            // Configure texture
-            texture.wrapS = THREE.RepeatWrapping;
-            texture.wrapT = THREE.RepeatWrapping;
-            texture.repeat.set(textureSettings.scale, textureSettings.scale);
-            texture.anisotropy = 16; // Improve texture quality
-            
-            // Ensure proper RGBA encoding for alpha channel
-            texture.encoding = THREE.sRGBEncoding;
-            texture.premultiplyAlpha = true; // Handle alpha correctly
-            texture.flipY = false; // Prevent texture flipping
-            
-            // Store the texture with its file name for identification
-            texture.userData = { fileName: textureSettings.texture };
-            textureTexturesRef.current[materialName] = texture;
-            console.log(`Pattern texture loaded for ${materialName}: ${textureSettings.texture}`);
-            
-            resolve(texture);
+            try {
+              // Configure texture
+              texture.wrapS = THREE.RepeatWrapping;
+              texture.wrapT = THREE.RepeatWrapping;
+              
+              // Ensure scale is a valid number
+              const scale = typeof textureSettings.scale === 'number' && !isNaN(textureSettings.scale) 
+                ? textureSettings.scale 
+                : 1.0;
+                
+              texture.repeat.set(scale, scale);
+              
+              // Apply rotation if specified (convert degrees to radians)
+              if (typeof textureSettings.rotation === 'number') {
+                const rotationRadians = (textureSettings.rotation * Math.PI) / 180;
+                texture.rotation = rotationRadians;
+                console.log(`Applied rotation of ${textureSettings.rotation}° (${rotationRadians.toFixed(2)} radians) to texture`);
+              } else {
+                // Ensure rotation is reset to 0 if not specified
+                texture.rotation = 0;
+                console.log(`Reset texture rotation to 0° (default)`);
+              }
+              
+              texture.anisotropy = 16; // Improve texture quality
+              
+              // Ensure proper RGBA encoding for alpha channel
+              texture.encoding = THREE.sRGBEncoding;
+              texture.premultiplyAlpha = true; // Handle alpha correctly
+              texture.flipY = false; // Prevent texture flipping
+              
+              // Store the texture with its file name for identification
+              texture.userData = { fileName: textureSettings.texture };
+              textureTexturesRef.current[materialName] = texture;
+              console.log(`Pattern texture loaded for ${materialName}: ${textureSettings.texture}`);
+              
+              resolve(texture);
+            } catch (configError) {
+              console.error(`Error configuring texture for ${materialName}:`, configError);
+              reject(configError);
+            }
           },
           undefined, // onProgress callback
           (error) => {
-            console.error(`Error loading pattern texture for ${materialName}:`, error);
+            console.error(`Error loading pattern texture for ${materialName} from ${texturePath}:`, error);
             reject(error);
           }
         );
       });
     } catch (error) {
       console.error("Error in loadPatternTexture:", error);
-      return null;
+      return Promise.reject(error);
     }
   };
   
@@ -156,6 +194,11 @@ const Shirt = () => {
         // If there was a texture material before, remove it
         if (node.userData && node.userData.textureMaterial) {
           if (node.userData.textureMaterial.map) {
+            // Reset rotation before disposing
+            if (node.userData.textureMaterial.map.rotation !== 0) {
+              node.userData.textureMaterial.map.rotation = 0;
+              console.log(`Reset texture rotation for ${materialName} when disabling texture`);
+            }
             node.userData.textureMaterial.map.dispose();
           }
           node.userData.textureMaterial.dispose();
@@ -166,6 +209,24 @@ const Shirt = () => {
       }
       
       const textureSettings = snap.materialTextures[materialName];
+      
+      // Validate texture settings
+      if (!textureSettings.texture) {
+        console.error(`Missing texture file name for ${materialName}`);
+        return false;
+      }
+      
+      // Ensure scale is a valid number
+      if (typeof textureSettings.scale !== 'number' || isNaN(textureSettings.scale)) {
+        console.warn(`Invalid scale value for ${materialName}, using default`);
+        textureSettings.scale = 1.0;
+      }
+      
+      // Initialize texture textures ref for this material if needed
+      if (!textureTexturesRef.current[materialName]) {
+        textureTexturesRef.current[materialName] = null;
+      }
+      
       const currentTexture = textureTexturesRef.current[materialName];
       
       // Check if we need to load a new texture or update an existing one
@@ -193,12 +254,38 @@ const Shirt = () => {
           });
       } else {
         // Update existing texture properties
-        currentTexture.repeat.set(textureSettings.scale, textureSettings.scale);
-        currentTexture.needsUpdate = true;
-        
-        // Create or update the texture material
-        createAndApplyTextureMaterial(node, materialName, currentTexture, textureSettings);
-        return true;
+        if (currentTexture && currentTexture.repeat) {
+          currentTexture.repeat.set(textureSettings.scale, textureSettings.scale);
+          
+          // Update rotation if specified (convert degrees to radians)
+          if (typeof textureSettings.rotation === 'number') {
+            const rotationRadians = (textureSettings.rotation * Math.PI) / 180;
+            currentTexture.rotation = rotationRadians;
+            console.log(`Updated rotation of existing texture to ${textureSettings.rotation}° (${rotationRadians.toFixed(2)} radians)`);
+          }
+          
+          currentTexture.needsUpdate = true;
+          
+          // Create or update the texture material
+          createAndApplyTextureMaterial(node, materialName, currentTexture, textureSettings);
+          return true;
+        } else {
+          console.warn(`Cannot update texture for ${materialName}: texture or repeat property is undefined`);
+          
+          // Try to load a new texture instead
+          loadPatternTexture(materialName, textureSettings)
+            .then(texture => {
+              if (texture) {
+                createAndApplyTextureMaterial(node, materialName, texture, textureSettings);
+                // Force update to re-render
+                setForceUpdate(prev => prev + 1);
+              }
+            })
+            .catch(error => {
+              console.error("Error applying pattern texture:", error);
+            });
+          return false;
+        }
       }
       
       return false;
@@ -226,10 +313,14 @@ const Shirt = () => {
     });
     
     // Apply color tint to the texture material
-    if (textureSettings.color && textureSettings.color !== '#ffffff') {
+    if (textureSettings.color && textureSettings.color.toLowerCase() !== '#ffffff') {
+      // Apply the color tint
       textureMaterial.color = new THREE.Color(textureSettings.color);
+      console.log(`Applied color tint ${textureSettings.color} to texture for ${materialName}`);
     } else {
-      textureMaterial.color = new THREE.Color('#ffffff'); // Reset to white if no color specified
+      // Use default white color (no tint)
+      textureMaterial.color = new THREE.Color('#ffffff');
+      console.log(`Using default color (no tint) for texture on ${materialName}`);
     }
     
     // Store the texture material
@@ -242,7 +333,8 @@ const Shirt = () => {
       texture: textureSettings.texture,
       opacity: textureSettings.opacity,
       scale: textureSettings.scale,
-      color: textureSettings.color
+      color: textureSettings.color,
+      rotation: textureSettings.rotation || 0
     });
   };
   
@@ -469,20 +561,31 @@ const Shirt = () => {
     }
   });
 
-  // Update texture settings when they change
+  // Apply textures when texture settings change
   useEffect(() => {
-    if (!meshes.length) return;
+    if (!meshes || meshes.length === 0 || !snap.materialTextures) {
+      return;
+    }
     
     console.log("Texture settings changed, updating textures...");
     
     meshes.forEach((node) => {
-      const materialName = node.material.name;
-      if (snap.materialTextures && snap.materialTextures[materialName]) {
-        const textureSettings = snap.materialTextures[materialName];
-        console.log(`Updating texture for ${materialName}:`, textureSettings);
+      try {
+        if (!node || !node.material || !node.material.name) {
+          console.warn("Invalid mesh node or missing material name:", node);
+          return;
+        }
         
-        // Apply or update the texture
-        applyPatternTexture(node, materialName);
+        const materialName = node.material.name;
+        if (snap.materialTextures && snap.materialTextures[materialName]) {
+          const textureSettings = snap.materialTextures[materialName];
+          console.log(`Updating texture for ${materialName}:`, textureSettings);
+          
+          // Apply or update the texture
+          applyPatternTexture(node, materialName);
+        }
+      } catch (error) {
+        console.error("Error applying texture to mesh:", error);
       }
     });
   }, [meshes, snap.materialTextures]);

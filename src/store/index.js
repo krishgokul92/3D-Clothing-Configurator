@@ -82,7 +82,8 @@ const state = proxy({
         texture: 'pattern1.png',
         scale: 1.0,
         opacity: 0.8,
-        color: '#ffffff' // Default white color (no tint)
+        color: '#ffffff', // Default white color (no tint)
+        rotation: 0 // Default rotation in degrees
       };
       console.log(`Initialized texture settings for: ${materialName}`);
     }
@@ -169,13 +170,41 @@ const state = proxy({
       state.initMaterialTexture(materialName);
     }
     
+    // Normalize color value
+    const normalizedColor = color ? color.toLowerCase() : '#ffffff';
+    
+    // Store the color value
+    state.materialTextures[materialName].color = normalizedColor;
+    
+    // If texture is not already enabled and we're setting a non-default color, enable it
+    if (!state.materialTextures[materialName].enabled && normalizedColor !== '#ffffff') {
+      state.materialTextures[materialName].enabled = true;
+      console.log(`Enabled texture for ${materialName} due to color tint being applied`);
+    }
+    
+    console.log(`Updated texture color for ${materialName} to ${normalizedColor}`);
+  },
+  
+  // Function to update texture rotation for a material
+  updateTextureRotation: (materialName, rotation) => {
+    if (!state.materialTextures) {
+      state.materialTextures = {};
+    }
+    
+    if (!state.materialTextures[materialName]) {
+      state.initMaterialTexture(materialName);
+    }
+    
     // If texture is not already enabled, enable it
     if (!state.materialTextures[materialName].enabled) {
       state.materialTextures[materialName].enabled = true;
     }
     
-    state.materialTextures[materialName].color = color;
-    console.log(`Updated texture color for ${materialName} to ${color}`);
+    // Normalize rotation to be between 0 and 360
+    const normalizedRotation = ((rotation % 360) + 360) % 360;
+    
+    state.materialTextures[materialName].rotation = normalizedRotation;
+    console.log(`Updated texture rotation for ${materialName} to ${normalizedRotation}°`);
   },
   
   // Function to set material type (solid or gradient)

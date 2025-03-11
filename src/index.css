@@ -1265,17 +1265,32 @@ input[type="file"] {
 /* Add these styles for the texture color control */
 .texture-color-control {
   display: flex;
-  flex-direction: column;
+  align-items: center;
   gap: 10px;
-  margin-top: 5px;
+  margin-top: 8px;
+  width: 100%;
 }
 
 .texture-color-preview {
-  width: 100%;
-  height: 30px;
+  width: 36px;
+  height: 36px;
   border-radius: 4px;
-  border: 1px solid rgba(0, 0, 0, 0.1);
-  margin-bottom: 5px;
+  border: 1px solid #e0e0e0;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.texture-color-preview:hover {
+  transform: scale(1.05);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+/* Style for the sketch picker wrapper in texture settings */
+.property-group .sketch-picker-wrapper {
+  margin-top: 15px;
+  border: 1px solid #f0f0f0;
+  border-radius: 4px;
+  overflow: hidden;
 }
 
 /* New Material Editor Styles */
@@ -2041,17 +2056,24 @@ input[type="file"] {
 
 .texture-color-control {
   display: flex;
-  flex-direction: column;
+  align-items: center;
   gap: 10px;
-  margin-top: 5px;
+  margin-top: 8px;
+  width: 100%;
 }
 
 .texture-color-preview {
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   border-radius: 4px;
   border: 1px solid #e0e0e0;
-  margin-bottom: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.texture-color-preview:hover {
+  transform: scale(1.05);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
 }
 
 /* New Material Editor Layout */
@@ -2247,6 +2269,14 @@ input[type="file"] {
   border-color: #1890ff;
 }
 
+/* Style for the sketch picker wrapper in texture settings */
+.property-group .sketch-picker-wrapper {
+  margin-top: 15px;
+  border: 1px solid #f0f0f0;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
 /* Responsive adjustments */
 @media (min-width: 768px) {
   .properties-panel {
@@ -2269,4 +2299,50 @@ input[type="file"] {
     transform: translateX(-100%);
     opacity: 0;
   }
+}
+
+/* Color active indicator */
+.color-active-indicator {
+  color: #1890ff;
+  font-size: 14px;
+  margin-left: 8px;
+  font-weight: 500;
+}
+
+/* Color picker actions */
+.color-picker-actions {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 10px;
+  padding: 10px;
+  border-top: 1px solid #f0f0f0;
+}
+
+.color-picker-apply-btn,
+.color-picker-reset-btn {
+  padding: 8px 12px;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.color-picker-apply-btn {
+  background-color: #1890ff;
+  color: white;
+}
+
+.color-picker-apply-btn:hover {
+  background-color: #40a9ff;
+}
+
+.color-picker-reset-btn {
+  background-color: #f5f5f5;
+  color: #333;
+}
+
+.color-picker-reset-btn:hover {
+  background-color: #e0e0e0;
 }
