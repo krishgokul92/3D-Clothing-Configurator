@@ -7,6 +7,7 @@ import { Decal, useGLTF, useTexture, OrbitControls } from '@react-three/drei';
 import { TextureLoader, sRGBEncoding, RepeatWrapping, LinearFilter, CanvasTexture } from 'three';
 
 import state from '../store';
+import { configureTexture, createTextureOverlayMaterial, loadTextureOverlay, loadUVMappedTexture } from './TextureUtils';
 
 const Shirt = () => {
   const snap = useSnapshot(state);
@@ -16,7 +17,7 @@ const Shirt = () => {
   const materialLogos = useRef({});
   const textTexturesRef = useRef({});
   const gradientTexturesRef = useRef({});
-  const textureTexturesRef = useRef({}); // For pattern textures
+  const textureLayersRef = useRef({});
   const [forceUpdate, setForceUpdate] = useState(0);
 
   const logoTexture = useTexture(snap.frontLogoDecal);
@@ -100,243 +101,124 @@ const Shirt = () => {
       return null;
     }
   };
-
-  // Load and configure a pattern texture
-  const loadPatternTexture = (materialName, textureSettings) => {
+  
+  // Preprocess texture to ensure proper transparency handling
+  const preprocessTexture = (texture) => {
+    // Configure the texture
+    texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+    texture.anisotropy = 16; // Improve texture quality
+    
+    // Ensure proper handling of transparency
+    texture.premultiplyAlpha = false; // Important for correct alpha handling
+    texture.format = THREE.RGBAFormat; // Use RGBA format to include alpha channel
+    
+    // Use sRGB encoding for correct colors if available
+    if (THREE.sRGBEncoding !== undefined) {
+      texture.encoding = THREE.sRGBEncoding;
+    }
+    
+    texture.needsUpdate = true;
+    return texture;
+  };
+  
+  // Load and configure texture for a material
+  const loadMaterialTexture = (materialName) => {
+    if (!snap.materialTextures || !snap.materialTextures[materialName]) {
+      console.log(`No texture settings found for ${materialName}`);
+      return null;
+    }
+    
+    const textureSettings = snap.materialTextures[materialName];
+    if (!textureSettings.enabled) {
+      console.log(`Texture disabled for ${materialName}`);
+      return null;
+    }
+    
+    console.log(`Loading texture for ${materialName}:`, textureSettings);
+    
     try {
-      // Validate inputs
-      if (!materialName || !textureSettings || !textureSettings.texture) {
-        console.error("Invalid parameters for loadPatternTexture:", { materialName, textureSettings });
-        return Promise.reject(new Error("Invalid parameters for loadPatternTexture"));
+      // Find the base material for this material name
+      const baseMaterial = materialsRef.current[materialName];
+      if (!baseMaterial) {
+        console.error(`Base material not found for ${materialName}`);
+        return null;
       }
       
-      // Initialize the texture storage if it doesn't exist
-      if (!textureTexturesRef.current) {
-        textureTexturesRef.current = {};
+      // Check if we have a gradient for this material
+      const hasGradient = snap.materialTypes && 
+                         snap.materialTypes[materialName] && 
+                         snap.materialTypes[materialName].type === 'gradient';
+      
+      // If we have a gradient, make sure it's applied to the base material
+      if (hasGradient && !baseMaterial.map) {
+        const gradientConfig = snap.materialTypes[materialName].gradient;
+        const gradientTexture = createGradientTexture(gradientConfig);
+        if (gradientTexture) {
+          baseMaterial.map = gradientTexture;
+          baseMaterial.needsUpdate = true;
+        }
       }
       
-      // Initialize the material-specific texture storage
-      if (!textureTexturesRef.current[materialName]) {
-        textureTexturesRef.current[materialName] = null;
-      }
-      
-      const textureLoader = new THREE.TextureLoader();
-      const texturePath = `/pattern/${textureSettings.texture}`;
-      
-      console.log(`Loading texture for ${materialName} from path: ${texturePath}`);
-      
-      return new Promise((resolve, reject) => {
-        textureLoader.load(
-          texturePath,
-          (texture) => {
+      // Use the UV-mapped texture approach to blend with the base material
+      return loadUVMappedTexture(
+        baseMaterial,
+        `/pattern/${textureSettings.texture}`,
+        textureSettings.scale || 1, // Ensure scale has a default value
+        textureSettings.opacity || 0.8, // Ensure opacity has a default value
+        textureSettings.color || '#000000' // Use custom color or default to black
+      );
+    } catch (error) {
+      console.error("Error creating texture layer:", error);
+      return null;
+    }
+  };
+  
+  // Update textures when texture settings change
+  useEffect(() => {
+    console.log("Texture settings changed, updating textures...", snap.materialTextures);
+    const updateTextures = async () => {
+      try {
+        // Clear existing texture layers if needed
+        if (textureLayersRef.current) {
+          // Keep track of which materials had textures before
+          const previousMaterials = Object.keys(textureLayersRef.current);
+          
+          // For materials that no longer have enabled textures, remove them
+          for (const materialName of previousMaterials) {
+            if (!snap.materialTextures[materialName] || !snap.materialTextures[materialName].enabled) {
+              delete textureLayersRef.current[materialName];
+            }
+          }
+        }
+        
+        // Update or create new texture layers
+        for (const materialName in snap.materialTextures) {
+          if (snap.materialTextures[materialName].enabled) {
             try {
-              // Configure texture
-              texture.wrapS = THREE.RepeatWrapping;
-              texture.wrapT = THREE.RepeatWrapping;
-              
-              // Ensure scale is a valid number
-              const scale = typeof textureSettings.scale === 'number' && !isNaN(textureSettings.scale) 
-                ? textureSettings.scale 
-                : 1.0;
-                
-              texture.repeat.set(scale, scale);
-              
-              // Apply rotation if specified (convert degrees to radians)
-              if (typeof textureSettings.rotation === 'number') {
-                const rotationRadians = (textureSettings.rotation * Math.PI) / 180;
-                texture.rotation = rotationRadians;
-                console.log(`Applied rotation of ${textureSettings.rotation}° (${rotationRadians.toFixed(2)} radians) to texture`);
-              } else {
-                // Ensure rotation is reset to 0 if not specified
-                texture.rotation = 0;
-                console.log(`Reset texture rotation to 0° (default)`);
+              // Always reload the texture when any property changes
+              const textureMaterial = await loadMaterialTexture(materialName);
+              if (textureMaterial) {
+                if (!textureLayersRef.current) {
+                  textureLayersRef.current = {};
+                }
+                textureLayersRef.current[materialName] = textureMaterial;
               }
-              
-              texture.anisotropy = 16; // Improve texture quality
-              
-              // Ensure proper RGBA encoding for alpha channel
-              texture.encoding = THREE.sRGBEncoding;
-              texture.premultiplyAlpha = true; // Handle alpha correctly
-              texture.flipY = false; // Prevent texture flipping
-              
-              // Store the texture with its file name for identification
-              texture.userData = { fileName: textureSettings.texture };
-              textureTexturesRef.current[materialName] = texture;
-              console.log(`Pattern texture loaded for ${materialName}: ${textureSettings.texture}`);
-              
-              resolve(texture);
-            } catch (configError) {
-              console.error(`Error configuring texture for ${materialName}:`, configError);
-              reject(configError);
+            } catch (error) {
+              console.error(`Failed to load texture for ${materialName}:`, error);
             }
-          },
-          undefined, // onProgress callback
-          (error) => {
-            console.error(`Error loading pattern texture for ${materialName} from ${texturePath}:`, error);
-            reject(error);
           }
-        );
-      });
-    } catch (error) {
-      console.error("Error in loadPatternTexture:", error);
-      return Promise.reject(error);
-    }
-  };
-  
-  // Apply pattern texture to a material
-  const applyPatternTexture = (node, materialName) => {
-    try {
-      // Check if texture is enabled for this material
-      if (!snap.materialTextures || 
-          !snap.materialTextures[materialName] || 
-          !snap.materialTextures[materialName].enabled) {
-        
-        // If there was a texture material before, remove it
-        if (node.userData && node.userData.textureMaterial) {
-          if (node.userData.textureMaterial.map) {
-            // Reset rotation before disposing
-            if (node.userData.textureMaterial.map.rotation !== 0) {
-              node.userData.textureMaterial.map.rotation = 0;
-              console.log(`Reset texture rotation for ${materialName} when disabling texture`);
-            }
-            node.userData.textureMaterial.map.dispose();
-          }
-          node.userData.textureMaterial.dispose();
-          node.userData.textureMaterial = null;
-          node.userData.hasTextureOverlay = false;
-        }
-        return false;
-      }
-      
-      const textureSettings = snap.materialTextures[materialName];
-      
-      // Validate texture settings
-      if (!textureSettings.texture) {
-        console.error(`Missing texture file name for ${materialName}`);
-        return false;
-      }
-      
-      // Ensure scale is a valid number
-      if (typeof textureSettings.scale !== 'number' || isNaN(textureSettings.scale)) {
-        console.warn(`Invalid scale value for ${materialName}, using default`);
-        textureSettings.scale = 1.0;
-      }
-      
-      // Initialize texture textures ref for this material if needed
-      if (!textureTexturesRef.current[materialName]) {
-        textureTexturesRef.current[materialName] = null;
-      }
-      
-      const currentTexture = textureTexturesRef.current[materialName];
-      
-      // Check if we need to load a new texture or update an existing one
-      const needsNewTexture = !currentTexture || 
-                             (currentTexture.userData && 
-                              currentTexture.userData.fileName !== textureSettings.texture);
-      
-      if (needsNewTexture) {
-        // If there was a previous texture, dispose it properly
-        if (currentTexture) {
-          currentTexture.dispose();
         }
         
-        // Load the new texture
-        loadPatternTexture(materialName, textureSettings)
-          .then(texture => {
-            if (texture) {
-              createAndApplyTextureMaterial(node, materialName, texture, textureSettings);
-              // Force update to re-render
-              setForceUpdate(prev => prev + 1);
-            }
-          })
-          .catch(error => {
-            console.error("Error applying pattern texture:", error);
-          });
-      } else {
-        // Update existing texture properties
-        if (currentTexture && currentTexture.repeat) {
-          currentTexture.repeat.set(textureSettings.scale, textureSettings.scale);
-          
-          // Update rotation if specified (convert degrees to radians)
-          if (typeof textureSettings.rotation === 'number') {
-            const rotationRadians = (textureSettings.rotation * Math.PI) / 180;
-            currentTexture.rotation = rotationRadians;
-            console.log(`Updated rotation of existing texture to ${textureSettings.rotation}° (${rotationRadians.toFixed(2)} radians)`);
-          }
-          
-          currentTexture.needsUpdate = true;
-          
-          // Create or update the texture material
-          createAndApplyTextureMaterial(node, materialName, currentTexture, textureSettings);
-          return true;
-        } else {
-          console.warn(`Cannot update texture for ${materialName}: texture or repeat property is undefined`);
-          
-          // Try to load a new texture instead
-          loadPatternTexture(materialName, textureSettings)
-            .then(texture => {
-              if (texture) {
-                createAndApplyTextureMaterial(node, materialName, texture, textureSettings);
-                // Force update to re-render
-                setForceUpdate(prev => prev + 1);
-              }
-            })
-            .catch(error => {
-              console.error("Error applying pattern texture:", error);
-            });
-          return false;
-        }
+        // Force a re-render to update the UI
+        setForceUpdate(prev => prev + 1);
+      } catch (error) {
+        console.error("Error updating textures:", error);
       }
-      
-      return false;
-    } catch (error) {
-      console.error("Error in applyPatternTexture:", error);
-      return false;
-    }
-  };
-  
-  // Helper function to create and apply a texture material
-  const createAndApplyTextureMaterial = (node, materialName, texture, textureSettings) => {
-    // Create a new material that will be used for the texture overlay
-    const textureMaterial = new THREE.MeshBasicMaterial({
-      map: texture,
-      transparent: true,
-      opacity: textureSettings.opacity,
-      alphaTest: 0.1, // Discard pixels with alpha below this threshold
-      blending: THREE.CustomBlending, // Use custom blending for better alpha handling
-      blendSrc: THREE.SrcAlphaFactor, // Use the alpha of the source
-      blendDst: THREE.OneMinusSrcAlphaFactor, // Use one minus the alpha of the source
-      blendEquation: THREE.AddEquation, // Add the source and destination
-      depthWrite: false, // Don't write to depth buffer for transparent objects
-      depthTest: true, // But still test against depth buffer
-      side: THREE.DoubleSide
-    });
+    };
     
-    // Apply color tint to the texture material
-    if (textureSettings.color && textureSettings.color.toLowerCase() !== '#ffffff') {
-      // Apply the color tint
-      textureMaterial.color = new THREE.Color(textureSettings.color);
-      console.log(`Applied color tint ${textureSettings.color} to texture for ${materialName}`);
-    } else {
-      // Use default white color (no tint)
-      textureMaterial.color = new THREE.Color('#ffffff');
-      console.log(`Using default color (no tint) for texture on ${materialName}`);
-    }
-    
-    // Store the texture material
-    if (!node.userData) node.userData = {};
-    node.userData.textureMaterial = textureMaterial;
-    node.userData.hasTextureOverlay = true;
-    
-    // Log the texture material properties for debugging
-    console.log(`Applied texture material to ${materialName}:`, {
-      texture: textureSettings.texture,
-      opacity: textureSettings.opacity,
-      scale: textureSettings.scale,
-      color: textureSettings.color,
-      rotation: textureSettings.rotation || 0
-    });
-  };
+    // Execute the update immediately
+    updateTextures();
+  }, [snap.materialTextures, snap.materials, snap.materialTypes]); // Also depend on material colors and types
   
   // Load material-specific logos when they change
   useEffect(() => {
@@ -391,8 +273,6 @@ const Shirt = () => {
 
   // Update materials when they change
   useEffect(() => {
-    console.log("Material properties changed, updating materials...");
-    
     meshes.forEach((node) => {
       const materialName = node.material.name;
       
@@ -400,8 +280,6 @@ const Shirt = () => {
       if (snap.materialTypes && 
           snap.materialTypes[materialName] && 
           snap.materialTypes[materialName].type === 'gradient') {
-        
-        console.log(`Applying gradient to ${materialName}`);
         
         // Create or update gradient texture
         if (!gradientTexturesRef.current) {
@@ -414,38 +292,41 @@ const Shirt = () => {
         
         // Apply gradient texture to material
         if (gradientTexture) {
-          // Ensure any previous map is disposed to prevent memory leaks
-          if (node.material.map && node.material.map !== gradientTexture) {
-            node.material.map.dispose();
-          }
-          
           node.material.map = gradientTexture;
           // Reset material color to white to prevent blending with the gradient texture
           node.material.color.set('#ffffff');
           node.material.needsUpdate = true;
         }
-      } else if (snap.materials[materialName]) {
-        console.log(`Applying solid color to ${materialName}: ${snap.materials[materialName]}`);
-        
-        // Remove any existing texture map if switching from gradient to solid
-        if (node.material.map) {
-          node.material.map.dispose();
-          node.material.map = null;
+      } else {
+        // Apply current color from state or gradient if applicable
+        if (snap.materialTypes && 
+            snap.materialTypes[materialName] && 
+            snap.materialTypes[materialName].type === 'gradient') {
+          
+          // Create and apply gradient texture
+          const gradientTexture = createGradientTexture(snap.materialTypes[materialName].gradient);
+          if (gradientTexture) {
+            node.material.map = gradientTexture;
+            node.material.color.set('#ffffff'); // Reset color to white for gradient
+            node.material.needsUpdate = true;
+          }
+        } else if (snap.materials[materialName]) {
+          // Remove any existing texture map if switching from gradient to solid
+          if (node.material.map) {
+            node.material.map = null;
+          }
+          
+          // Only set color directly for solid materials or if material type is not yet defined
+          if (!snap.materialTypes[materialName] || snap.materialTypes[materialName].type === 'solid') {
+            node.material.color.set(snap.materials[materialName]);
+          }
+          node.material.needsUpdate = true;
         }
-        
-        // Only set color directly for solid materials or if material type is not yet defined
-        if (!snap.materialTypes[materialName] || snap.materialTypes[materialName].type === 'solid') {
-          node.material.color.set(snap.materials[materialName]);
-        }
-        node.material.needsUpdate = true;
       }
-      
-      // Apply pattern texture if enabled
-      applyPatternTexture(node, materialName);
     });
-  }, [meshes, snap.materials, snap.materialTypes, snap.materialTextures]);
+  }, [meshes, snap.materials, snap.materialTypes]);
 
-  // Initialize materials and textures when model loads
+  // Find all meshes in the model
   useEffect(() => {
     if (scene) {
       const foundMeshes = [];
@@ -470,19 +351,14 @@ const Shirt = () => {
               state.materials[materialName] = '#' + node.material.color.getHexString();
             }
             
-            // Initialize material type if not already there
-            if (!snap.materialTypes || !snap.materialTypes[materialName]) {
-              state.initMaterialType(materialName);
+            // Initialize material decorations if not already there
+            if (!snap.materialDecorations[materialName]) {
+              state.initMaterialDecorations(materialName);
             }
             
             // Initialize material texture settings if not already there
             if (!snap.materialTextures || !snap.materialTextures[materialName]) {
               state.initMaterialTexture(materialName);
-            }
-            
-            // Initialize material decorations if not already there
-            if (!snap.materialDecorations[materialName]) {
-              state.initMaterialDecorations(materialName);
             }
           }
           
@@ -510,9 +386,6 @@ const Shirt = () => {
             }
             node.material.needsUpdate = true;
           }
-          
-          // Apply pattern texture if enabled
-          applyPatternTexture(node, materialName);
         }
       });
       
@@ -529,9 +402,19 @@ const Shirt = () => {
         if (!snap.materialDecorations[firstMaterialName]) {
           state.initMaterialDecorations(firstMaterialName);
         }
+        
+        // Initialize material type if not already there
+        if (!snap.materialTypes || !snap.materialTypes[firstMaterialName]) {
+          state.initMaterialType(firstMaterialName);
+        }
+        
+        // Initialize material texture settings if not already there
+        if (!snap.materialTextures || !snap.materialTextures[firstMaterialName]) {
+          state.initMaterialTexture(firstMaterialName);
+        }
       }
     }
-  }, [scene]);
+  }, []);
 
   // Update material colors in real-time
   useFrame((state, delta) => {
@@ -542,60 +425,98 @@ const Shirt = () => {
           
           // Only apply color easing to solid materials, not to materials with gradients
           if (snap.materials[materialName] && 
-              snap.materialTypes[materialName] && 
-              snap.materialTypes[materialName].type === 'solid') {
+              (!snap.materialTypes[materialName] || 
+               snap.materialTypes[materialName].type === 'solid')) {
             
-            // Get the target color from the materials state
-            const targetColor = snap.materials[materialName];
-            
-            // Apply smooth color transition
             easing.dampC(
               node.material.color,
-              targetColor,
+              snap.materials[materialName],
               0.25,
               delta
             );
+            
+            // If this material has a texture layer with a shader, update its base color uniform
+            if (textureLayersRef.current && 
+                textureLayersRef.current[materialName] && 
+                textureLayersRef.current[materialName].uniforms && 
+                textureLayersRef.current[materialName].uniforms.baseColor) {
+              
+              // Smoothly update the base color in the shader
+              easing.dampC(
+                textureLayersRef.current[materialName].uniforms.baseColor.value,
+                snap.materials[materialName],
+                0.25,
+                delta
+              );
+              
+              // Mark the material as needing update
+              textureLayersRef.current[materialName].needsUpdate = true;
+            }
           }
         }
       });
     }
   });
 
-  // Apply textures when texture settings change
+  // Update pattern scale when it changes in the state
   useEffect(() => {
-    if (!meshes || meshes.length === 0 || !snap.materialTextures) {
-      return;
-    }
-    
-    console.log("Texture settings changed, updating textures...");
-    
-    meshes.forEach((node) => {
-      try {
-        if (!node || !node.material || !node.material.name) {
-          console.warn("Invalid mesh node or missing material name:", node);
-          return;
+    // Any other code that might be here
+  }, []);
+
+  // Update shader uniforms when material properties change
+  useEffect(() => {
+    // Update shader uniforms for texture materials
+    if (textureLayersRef.current) {
+      for (const materialName in textureLayersRef.current) {
+        const material = textureLayersRef.current[materialName];
+        
+        // Skip if not a shader material
+        if (!material || !material.uniforms) continue;
+        
+        // Update base color if material exists
+        if (materialsRef.current[materialName]) {
+          const baseColor = new THREE.Color(materialsRef.current[materialName].color);
+          if (material.uniforms.baseColor) {
+            material.uniforms.baseColor.value = baseColor;
+          }
+          
+          // Update base map if material has one
+          if (materialsRef.current[materialName].map && material.uniforms.baseMap) {
+            material.uniforms.baseMap.value = materialsRef.current[materialName].map;
+            material.uniforms.hasBaseMap.value = 1.0;
+          }
         }
         
-        const materialName = node.material.name;
+        // Update texture settings if they exist
         if (snap.materialTextures && snap.materialTextures[materialName]) {
-          const textureSettings = snap.materialTextures[materialName];
-          console.log(`Updating texture for ${materialName}:`, textureSettings);
+          const settings = snap.materialTextures[materialName];
           
-          // Apply or update the texture
-          applyPatternTexture(node, materialName);
+          // Update opacity
+          if (material.uniforms.opacity && settings.opacity !== undefined) {
+            material.uniforms.opacity.value = settings.opacity;
+          }
+          
+          // Update pattern color
+          if (material.uniforms.patternColor && settings.color) {
+            const colorObj = new THREE.Color(settings.color);
+            material.uniforms.patternColor.value = new THREE.Vector3(colorObj.r, colorObj.g, colorObj.b);
+          }
+          
+          // Update texture scale if the map exists
+          if (material.uniforms.map && material.uniforms.map.value && settings.scale !== undefined) {
+            material.uniforms.map.value.repeat.set(settings.scale, settings.scale);
+            material.uniforms.map.value.needsUpdate = true;
+          }
         }
-      } catch (error) {
-        console.error("Error applying texture to mesh:", error);
+        
+        // Mark material as needing update
+        material.needsUpdate = true;
       }
-    });
-  }, [meshes, snap.materialTextures]);
-  
-  // Use a separate effect to track when specific texture properties change
-  useEffect(() => {
-    // This effect doesn't need to do anything, it just forces a re-render
-    // when the stringified materialTextures changes
-    console.log("Texture properties changed");
-  }, [JSON.stringify(snap.materialTextures)]);
+      
+      // Force a re-render
+      setForceUpdate(prev => prev + 1);
+    }
+  }, [snap.materials, snap.materialTextures, snap.materialTypes]);
 
   if (meshes.length === 0) return null;
 
@@ -610,12 +531,19 @@ const Shirt = () => {
       />
       {meshes.map((node, index) => {
         const materialName = node.material.name;
-        const hasTextureOverlay = node.userData && 
-                                 node.userData.textureMaterial && 
-                                 node.userData.hasTextureOverlay &&
-                                 snap.materialTextures && 
-                                 snap.materialTextures[materialName] && 
-                                 snap.materialTextures[materialName].enabled;
+        const hasTextureLayer = textureLayersRef.current && 
+                               textureLayersRef.current[materialName] && 
+                               snap.materialTextures && 
+                               snap.materialTextures[materialName] && 
+                               snap.materialTextures[materialName].enabled;
+        
+        // Log texture status for debugging
+        if (snap.materialTextures && snap.materialTextures[materialName]) {
+          const textureSettings = snap.materialTextures[materialName];
+          if (textureSettings.enabled && !hasTextureLayer) {
+            console.log(`Texture enabled for ${materialName} but no texture layer found. Settings:`, textureSettings);
+          }
+        }
         
         return (
           <group key={`${index}-${forceUpdate}`}>
@@ -623,10 +551,9 @@ const Shirt = () => {
             <mesh
               castShadow
               geometry={node.geometry}
-              material={node.material}
-              position={node.position}
-              rotation={node.rotation}
-              scale={node.scale}
+              material={hasTextureLayer ? textureLayersRef.current[materialName] : node.material}
+              material-roughness={1}
+              dispose={null}
             >
               {/* Global decorations */}
               {node.material.name === 'lambert1' && (
@@ -743,22 +670,6 @@ const Shirt = () => {
                 );
               })()}
             </mesh>
-            
-            {/* Render texture overlay if enabled */}
-            {hasTextureOverlay && (
-              <mesh
-                geometry={node.geometry}
-                material={node.userData.textureMaterial}
-                position={node.position}
-                rotation={node.rotation}
-                scale={node.scale}
-                renderOrder={2} // Ensure it renders after the base material
-                userData={{ isTextureOverlay: true }}
-              >
-                {/* This empty fragment ensures the mesh is properly updated when texture properties change */}
-                <></>
-              </mesh>
-            )}
           </group>
         );
       })}

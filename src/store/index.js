@@ -16,9 +16,10 @@ const state = proxy({
   },
   activeMaterial: null, // Currently selected material for editing
   
-  // Texture settings for materials
+  // Texture support
   materialTextures: {
-    // Structure: {materialName: {enabled: boolean, texture: string, scale: number, opacity: number}}
+    // Will store texture settings for each material
+    // Structure: {materialName: {enabled: true, texture: 'pattern1.png', opacity: 0.8, scale: 1}}
   },
   
   // Available textures
@@ -30,6 +31,7 @@ const state = proxy({
     { name: 'Pattern 5', file: 'pattern5.png' },
     { name: 'Pattern 6', file: 'pattern6.png' },
     { name: 'Pattern 7', file: 'pattern7.png' },
+
   ],
   
   // Material-specific decorations
@@ -70,26 +72,29 @@ const state = proxy({
     }
   },
   
-  // Function to initialize material texture settings
+  // Function to initialize material texture
   initMaterialTexture: (materialName) => {
     if (!state.materialTextures) {
-      state.materialTextures = {};
+      state.materialTextures = { ...state.materialTextures };
     }
     
     if (!state.materialTextures[materialName]) {
-      state.materialTextures[materialName] = {
-        enabled: false,
-        texture: 'pattern1.png',
-        scale: 1.0,
-        opacity: 0.8,
-        color: '#ffffff', // Default white color (no tint)
-        rotation: 0 // Default rotation in degrees
+      // Create a new object with default texture settings
+      state.materialTextures = {
+        ...state.materialTextures,
+        [materialName]: {
+          enabled: false,
+          texture: 'pattern1.png',
+          opacity: 0.8,
+          scale: 1,
+          color: '#000000' // Default to black (original behavior)
+        }
       };
       console.log(`Initialized texture settings for: ${materialName}`);
     }
   },
   
-  // Function to toggle texture visibility for a material
+  // Function to toggle texture for a material
   toggleMaterialTexture: (materialName) => {
     if (!state.materialTextures) {
       state.materialTextures = {};
@@ -99,12 +104,18 @@ const state = proxy({
       state.initMaterialTexture(materialName);
     }
     
-    state.materialTextures[materialName].enabled = !state.materialTextures[materialName].enabled;
-    console.log(`Toggled texture for ${materialName} to ${state.materialTextures[materialName].enabled}`);
+    // Create a new object to ensure Valtio detects the change
+    const updatedSettings = { ...state.materialTextures[materialName] };
+    updatedSettings.enabled = !updatedSettings.enabled;
+    
+    // Replace the entire object to ensure the change is detected
+    state.materialTextures[materialName] = updatedSettings;
+    
+    console.log(`Toggled texture for ${materialName} to ${updatedSettings.enabled}`);
   },
   
-  // Function to update texture for a material
-  updateMaterialTexture: (materialName, textureFile) => {
+  // Function to update texture settings
+  updateTextureSettings: (materialName, property, value) => {
     if (!state.materialTextures) {
       state.materialTextures = {};
     }
@@ -113,98 +124,17 @@ const state = proxy({
       state.initMaterialTexture(materialName);
     }
     
-    // If texture is not already enabled, enable it
-    if (!state.materialTextures[materialName].enabled) {
-      state.materialTextures[materialName].enabled = true;
-    }
+    // Create a new object to ensure Valtio detects the change
+    const updatedSettings = { ...state.materialTextures[materialName] };
+    updatedSettings[property] = value;
     
-    state.materialTextures[materialName].texture = textureFile;
-    console.log(`Updated texture for ${materialName} to ${textureFile}`);
-  },
-  
-  // Function to update texture scale for a material
-  updateTextureScale: (materialName, scale) => {
-    if (!state.materialTextures) {
-      state.materialTextures = {};
-    }
+    // Replace the entire object to ensure the change is detected
+    state.materialTextures = {
+      ...state.materialTextures,
+      [materialName]: updatedSettings
+    };
     
-    if (!state.materialTextures[materialName]) {
-      state.initMaterialTexture(materialName);
-    }
-    
-    // If texture is not already enabled, enable it
-    if (!state.materialTextures[materialName].enabled) {
-      state.materialTextures[materialName].enabled = true;
-    }
-    
-    state.materialTextures[materialName].scale = scale;
-    console.log(`Updated texture scale for ${materialName} to ${scale}`);
-  },
-  
-  // Function to update texture opacity for a material
-  updateTextureOpacity: (materialName, opacity) => {
-    if (!state.materialTextures) {
-      state.materialTextures = {};
-    }
-    
-    if (!state.materialTextures[materialName]) {
-      state.initMaterialTexture(materialName);
-    }
-    
-    // If texture is not already enabled, enable it
-    if (!state.materialTextures[materialName].enabled) {
-      state.materialTextures[materialName].enabled = true;
-    }
-    
-    state.materialTextures[materialName].opacity = opacity;
-    console.log(`Updated texture opacity for ${materialName} to ${opacity}`);
-  },
-  
-  // Function to update texture color for a material
-  updateTextureColor: (materialName, color) => {
-    if (!state.materialTextures) {
-      state.materialTextures = {};
-    }
-    
-    if (!state.materialTextures[materialName]) {
-      state.initMaterialTexture(materialName);
-    }
-    
-    // Normalize color value
-    const normalizedColor = color ? color.toLowerCase() : '#ffffff';
-    
-    // Store the color value
-    state.materialTextures[materialName].color = normalizedColor;
-    
-    // If texture is not already enabled and we're setting a non-default color, enable it
-    if (!state.materialTextures[materialName].enabled && normalizedColor !== '#ffffff') {
-      state.materialTextures[materialName].enabled = true;
-      console.log(`Enabled texture for ${materialName} due to color tint being applied`);
-    }
-    
-    console.log(`Updated texture color for ${materialName} to ${normalizedColor}`);
-  },
-  
-  // Function to update texture rotation for a material
-  updateTextureRotation: (materialName, rotation) => {
-    if (!state.materialTextures) {
-      state.materialTextures = {};
-    }
-    
-    if (!state.materialTextures[materialName]) {
-      state.initMaterialTexture(materialName);
-    }
-    
-    // If texture is not already enabled, enable it
-    if (!state.materialTextures[materialName].enabled) {
-      state.materialTextures[materialName].enabled = true;
-    }
-    
-    // Normalize rotation to be between 0 and 360
-    const normalizedRotation = ((rotation % 360) + 360) % 360;
-    
-    state.materialTextures[materialName].rotation = normalizedRotation;
-    console.log(`Updated texture rotation for ${materialName} to ${normalizedRotation}°`);
+    console.log(`Updated texture ${property} for ${materialName} to ${value}`);
   },
   
   // Function to set material type (solid or gradient)
@@ -217,30 +147,17 @@ const state = proxy({
       state.initMaterialType(materialName);
     }
     
-    // Skip if already the same type
-    if (state.materialTypes[materialName].type === type) {
-      console.log(`Material ${materialName} is already type ${type}`);
-      return;
-    }
-    
-    console.log(`Changing material ${materialName} from ${state.materialTypes[materialName].type} to ${type}`);
-    
     // When switching to solid, update the material color to the stored solid color
     if (type === 'solid' && state.materialTypes[materialName].type === 'gradient') {
-      const solidColor = state.materialTypes[materialName].solidColor;
-      console.log(`Switching to solid color: ${solidColor}`);
-      state.updateMaterialColor(materialName, solidColor);
+      state.updateMaterialColor(materialName, state.materialTypes[materialName].solidColor);
     }
     
     // When switching to gradient, store the current solid color but don't change gradient colors
     if (type === 'gradient' && state.materialTypes[materialName].type === 'solid') {
-      const currentColor = state.materials[materialName];
-      console.log(`Switching to gradient, storing solid color: ${currentColor}`);
-      state.materialTypes[materialName].solidColor = currentColor;
+      state.materialTypes[materialName].solidColor = state.materials[materialName];
       // Don't update gradient colors here - keep them as they were
     }
     
-    // Update the material type
     state.materialTypes[materialName].type = type;
     console.log(`Set material ${materialName} type to ${type}`);
   },
@@ -296,15 +213,11 @@ const state = proxy({
     
     state.materialDecorations[materialName].logos.push({
       id: Date.now().toString(),
-      visible: true,
+      enabled: true,
       image: null,
       scale: 0.15,
-      position: {
-        x: 0,
-        y: 0,
-        z: 0
-      },
-      rotation: 0
+      position: [0, 0, 0],
+      rotation: [0, 0, 0]
     });
   },
   
@@ -316,17 +229,14 @@ const state = proxy({
     
     state.materialDecorations[materialName].texts.push({
       id: Date.now().toString(),
-      visible: true,
+      enabled: true,
       content: 'Sample Text',
       font: 'Arial',
       size: 64,
       color: 'white',
-      position: {
-        x: 0,
-        y: 0,
-        z: 0
-      },
-      rotation: 0
+      scale: [0.15, 0.04, 0.1],
+      position: [0, 0, 0],
+      rotation: [0, 0, 0]
     });
   },
   
@@ -351,7 +261,7 @@ const state = proxy({
     if (state.materialDecorations[materialName] && state.materialDecorations[materialName].logos) {
       const logo = state.materialDecorations[materialName].logos.find(l => l.id === logoId);
       if (logo) {
-        logo.visible = !logo.visible;
+        logo.enabled = !logo.enabled;
       }
     }
   },
@@ -361,7 +271,7 @@ const state = proxy({
     if (state.materialDecorations[materialName] && state.materialDecorations[materialName].texts) {
       const text = state.materialDecorations[materialName].texts.find(t => t.id === textId);
       if (text) {
-        text.visible = !text.visible;
+        text.enabled = !text.enabled;
       }
     }
   },
@@ -382,7 +292,7 @@ const state = proxy({
       const logo = state.materialDecorations[materialName].logos.find(l => l.id === logoId);
       if (logo) {
         logo.image = image;
-        logo.visible = true; // Ensure logo is enabled when image is set
+        logo.enabled = true; // Ensure logo is enabled when image is set
         console.log(`Store: Logo image updated successfully for ${materialName}, logo ID: ${logoId}`);
       } else {
         console.error(`Store: Logo with ID ${logoId} not found for material ${materialName}`);
@@ -407,34 +317,7 @@ const state = proxy({
     if (state.materialDecorations[materialName] && state.materialDecorations[materialName].logos) {
       const logo = state.materialDecorations[materialName].logos.find(l => l.id === logoId);
       if (logo) {
-        // Handle position properties
-        if (property === 'positionX') {
-          if (!logo.position.x) {
-            // Convert from array to object if needed
-            logo.position = {
-              x: logo.position[0] || 0,
-              y: logo.position[1] || 0,
-              z: logo.position[2] || 0
-            };
-          }
-          logo.position.x = value;
-        } else if (property === 'positionY') {
-          if (!logo.position.x) {
-            // Convert from array to object if needed
-            logo.position = {
-              x: logo.position[0] || 0,
-              y: logo.position[1] || 0,
-              z: logo.position[2] || 0
-            };
-          }
-          logo.position.y = value;
-        } else if (property === 'rotation') {
-          // Store rotation as a single value instead of array
-          logo.rotation = value;
-        } else {
-          // For other properties like scale, just set directly
-          logo[property] = value;
-        }
+        logo[property] = value;
       }
     }
   },
@@ -444,34 +327,7 @@ const state = proxy({
     if (state.materialDecorations[materialName] && state.materialDecorations[materialName].texts) {
       const text = state.materialDecorations[materialName].texts.find(t => t.id === textId);
       if (text) {
-        // Handle position properties
-        if (property === 'positionX') {
-          if (!text.position.x) {
-            // Convert from array to object if needed
-            text.position = {
-              x: text.position[0] || 0,
-              y: text.position[1] || 0,
-              z: text.position[2] || 0
-            };
-          }
-          text.position.x = value;
-        } else if (property === 'positionY') {
-          if (!text.position.x) {
-            // Convert from array to object if needed
-            text.position = {
-              x: text.position[0] || 0,
-              y: text.position[1] || 0,
-              z: text.position[2] || 0
-            };
-          }
-          text.position.y = value;
-        } else if (property === 'rotation') {
-          // Store rotation as a single value instead of array
-          text.rotation = value;
-        } else {
-          // For other properties like font, size, color, just set directly
-          text[property] = value;
-        }
+        text[property] = value;
       }
     }
   },
